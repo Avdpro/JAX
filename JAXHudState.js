@@ -117,7 +117,7 @@ var jaxHudState_,jaxHudState,jaxHudSubState;
 
 			//-------------------------------------------------------------------------
 			//添加延时数据观察回调，返回指定变量对应的msg
-			self.bindValNotify = function (valName, func, view) {
+			self.onNotify=self.bindValNotify = function (valName, func, view) {
 				var set;
 				if (!func) {
 					return;
@@ -136,7 +136,7 @@ var jaxHudState_,jaxHudState,jaxHudSubState;
 
 			//-------------------------------------------------------------------------
 			//移除绑定的函数:
-			self.removeValNotify=function(valName,func,view){
+			self.offNotify=self.removeValNotify=function(valName,func,view){
 				let hash,stub,set;
 				if (func) {
 					set = m_viewHubOn[valName];
@@ -277,6 +277,7 @@ var jaxHudState_,jaxHudState,jaxHudSubState;
 					sub.update(1);
 				}
 			}
+			self.OnUpdate&&self.OnUpdate();
 		};
 
 		//更新state，通知全部与state的update绑定的hud/对象属性:

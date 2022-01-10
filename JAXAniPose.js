@@ -1,3 +1,4 @@
+import {JAXEnv} from './JAXEnv.js';
 import {JAXAni} from "./JAXAni.js";
 import {JAXAniHtml} from "./JAXAniHtml.js";
 
@@ -77,16 +78,40 @@ __Proto=JAXAniPose.prototype=new JAXAni();
 			if(x instanceof Function){
 				x=x.call(hud);
 			}
-			vo1.left=hud.x+"px";
-			vo2.left=x+"px";
+			switch(hud.anchorH){
+				case 0:
+					vo1.left=hud.x+"px";
+					vo2.left=x+"px";
+					break;
+				case 1:
+					vo1.left=(hud.x-hud.w*0.5)+"px";
+					vo2.left=(x-hud.w*0.5)+"px";
+					break;
+				case 2:
+					vo1.left=(hud.x-hud.w)+"px";
+					vo2.left=(x-hud.w)+"px";
+					break;
+			}
 		}
 		if("y" in def) {
 			y = def.y || hud.y;
 			if (y instanceof Function) {
 				y = y.call(hud);
 			}
-			vo1.top=hud.y+"px";
-			vo2.top=y+"px";
+			switch(hud.anchorH){
+				case 0:
+					vo1.top=hud.y+"px";
+					vo2.top=y+"px";
+					break;
+				case 1:
+					vo1.top=(hud.y-hud.h*0.5)+"px";
+					vo2.top=(y-hud.h*0.5)+"px";
+					break;
+				case 2:
+					vo1.top=(hud.y-hud.h)+"px";
+					vo2.top=(y-hud.h)+"px";
+					break;
+			}
 		}
 		if("scale" in def){
 			vo1.transform='scale('+hud.scale+')';
@@ -114,6 +139,24 @@ __Proto=JAXAniPose.prototype=new JAXAni();
 		//this.hud.setDisplay(1);
 		this.htmlAni.start();
 		this.htmlAni.OnFinish=function(){
+			if("x" in def){
+				hud.x = def.x;
+			}
+			if("y" in def){
+				hud.y = def.y;
+			}
+			if("w" in def){
+				hud.w = def.w;
+			}
+			if("h" in def){
+				hud.h = def.h;
+			}
+			if("alpha" in def){
+				hud.alpha = def.alpha;
+			}
+			if("scale" in def){
+				hud.scale = def.scale;
+			}
 			self.OnFinish&&self.OnFinish();
 			self.htmlAni=null;
 		};

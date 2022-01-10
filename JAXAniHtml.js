@@ -1,4 +1,4 @@
-import {JAXEnv} from "./JAXEnv.js";
+import {JAXEnv} from './JAXEnv.js';
 import {JAXAni} from "./JAXAni.js";
 
 var JAXAniHtml,__Proto;

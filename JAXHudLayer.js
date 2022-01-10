@@ -1,4 +1,4 @@
-import {JAXEnv,$JXV} from "./JAXEnv.js";
+import {JAXEnv,$JXV,$V} from "./JAXEnv.js";
 import {JAXHudObj} from "./JAXHudObj.js";
 import {JAXHudView} from "./JAXHudView.js";
 
@@ -34,13 +34,15 @@ JAXHudLayer=function(app,appDiv)
 			set: function (v) {
 				if(v instanceof $JXV){
 					let oldV;
-					oldV=valJXVMap['uiEvent'];
-					if(oldV){
+					oldV = valJXVMap.get('uiEvent');
+					if (oldV) {
 						oldV.untrace();
 						valJXVMap.delete('uiEvent');
 					}
-					v.trace(this.stateObj,this,'uiEvent',hudView);
-					valJXVMap.set('uiEvent',v);
+					if(v.traces!==0) {
+						v.trace(this.stateObj, this, 'uiEvent', hudView);
+						valJXVMap.set('uiEvent', v);
+					}
 					v=v.val;
 				}
 				if (uiEvent !== v) {

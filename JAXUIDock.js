@@ -1,4 +1,4 @@
-import {JAXEnv} from "./JAXEnv.js";
+import {JAXEnv,$JXV,$V} from "./JAXEnv.js";
 import {JAXHudObj} from "./JAXHudObj.js";
 
 let JAXUIDock,__Proto;
@@ -118,9 +118,9 @@ JAXUIDock=function(jaxEnv){
 			uiStack.push(ui);
 			ui.uiEvent=0;
 			result =ui.showUI?ui.showUI(vo,preUI):null;
-			this.OnShowUI&&this.OnShowUI(ui,preUI);
 			if(result instanceof Promise){
 				result.then(()=>{
+					this.OnShowUI&&this.OnShowUI(ui,preUI);
 					ui.uiEvent=1;
 					if(preUI) {
 						this.OnUICovered&&this.OnUICovered(preUI);
@@ -134,6 +134,7 @@ JAXUIDock=function(jaxEnv){
 					this.OnUIShowed&&this.OnUIShowed(ui);
 				});
 			}else{
+				this.OnShowUI&&this.OnShowUI(ui,preUI);
 				ui.uiEvent=1;
 				if(preUI) {
 					this.OnUICovered&&this.OnUICovered(preUI);
@@ -146,10 +147,10 @@ JAXUIDock=function(jaxEnv){
 				}
 				this.OnUIShowed&&this.OnUIShowed(ui);
 			}
+			ui.hold();
 			if(inSub) {
 				uiId = ui.id;
 				if (uiId && !subHash[uiId]) {
-					ui.hold();
 					subUIs.push(ui);
 					subHash[uiId] = ui;
 				}
@@ -161,6 +162,21 @@ JAXUIDock=function(jaxEnv){
 		//显示UI:
 		this.showUI=function(ui,vo){
 			let idx,preUI,result;
+
+			preUI=this.curUI;
+
+			//同一个UI，调用showUI函数，不进行UI切换
+			if(preUI===ui){
+				result =ui.showUI?ui.showUI(vo,preUI):null;
+				if(result instanceof Promise){
+					result.then(()=>{
+						this.OnUIShowed&&this.OnUIShowed(ui);
+					});
+				}else{
+					this.OnUIShowed&&this.OnUIShowed(ui);
+				}
+				return ui;
+			}
 
 			if(typeof(ui)==="string"){
 				ui=subHash[ui];
@@ -178,7 +194,6 @@ JAXUIDock=function(jaxEnv){
 			if(idx>=0){
 				uiStack.splice(idx,1);
 			}
-			preUI=this.curUI;
 			uiStack.push(ui);
 			this.appendChild(ui);
 			if(preUI){
@@ -243,11 +258,13 @@ JAXUIDock=function(jaxEnv){
 							result.then(()=>{
 								this.OnUIDismissed&&this.OnUIDismissed();
 								self.removeChild(ui);
+								ui.release();
 							});
 						}
 					}else {
 						this.OnUIDismissed&&this.OnUIDismissed();
 						self.removeChild(ui);
+						ui.release();
 					}
 				}
 			}else{
@@ -269,6 +286,7 @@ JAXUIDock=function(jaxEnv){
 						result.then(()=>{
 							this.OnUIDismissed&&this.OnUIDismissed();
 							self.removeChild(ui);
+							ui.release();
 							if(nextUI){
 								this.OnUIUncovered&&this.OnUIUncovered(nextUI);
 								nextUI.uiEvent=1;
@@ -277,6 +295,7 @@ JAXUIDock=function(jaxEnv){
 					}else{
 						this.OnUIDismissed&&this.OnUIDismissed();
 						self.removeChild(ui);
+						ui.release();
 						if(nextUI){
 							this.OnUIUncovered&&this.OnUIUncovered(nextUI);
 							nextUI.uiEvent=1;
@@ -285,13 +304,14 @@ JAXUIDock=function(jaxEnv){
 				}else{
 					this.OnUIDismissed&&this.OnUIDismissed();
 					self.removeChild(ui);
+					ui.release();
 					if(nextUI){
 						this.OnUIUncovered&&this.OnUIUncovered(nextUI);
 						nextUI.uiEvent=1;
 					}
 				}
 				if(!uiStack.length){
-					this.OnRunoutUI();
+					this.OnRunoutUI&&this.OnRunoutUI();
 				}
 			}
 		};

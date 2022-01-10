@@ -1,3 +1,4 @@
+import {JAXEnv} from './JAXEnv.js';
 import {JAXAni} from "./JAXAni.js";
 import {JAXAniFade} from "./JAXAniFade.js";
 import {JAXAniPose} from "./JAXAniPose.js";
@@ -123,7 +124,7 @@ __Proto=JAXAniAuto.prototype=new JAXAni();
 		}
 		this.aniObj=aniObj;
 		if(aniObj){
-			aniObj.start();
+			aniObj.start(def.time);
 			this.aniObj.OnFinish=function(){
 				self.OnFinish&&self.OnFinish();
 				self.aniObj=null;

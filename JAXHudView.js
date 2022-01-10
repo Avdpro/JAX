@@ -1,3 +1,4 @@
+import {JAXEnv,$JXV,$V} from "./JAXEnv.js";
 import {JAXHudObj} from "./JAXHudObj.js";
 import {jaxHudState} from "./JAXHudState.js";
 
@@ -8,7 +9,7 @@ JAXHudView=function(jaxEnv)
 	var statesInView=[];
 	var viewOnline=1;
 	var ownerView=null;
-	var allowValNotify=1;
+	var allowValNotify=true;
 	var self=this;
 
 	var updateStates;
@@ -30,12 +31,12 @@ JAXHudView=function(jaxEnv)
 			get:function(){
 				var view,ownerView;
 				if(!allowValNotify)
-					return 0;
+					return false;
 				ownerView=this.ownerView;
-				return ownerView?ownerView.allowValNotify:1;
+				return ownerView?ownerView.allowValNotify:true;
 			},
 			set:function(v){
-				v=v?1:0;
+				v=v?true:false;
 				if(v!==allowValNotify){
 					allowValNotify=v;
 					if(v && self.stateObj){
@@ -97,7 +98,7 @@ __Proto=JAXHudView.prototype=new JAXHudObj();
 		this.removeAllChildren();
 		if (!this.webObj) {
 			div = this.webObj = document.createElement('div');
-			div.style.position = "absolute";
+			div.style.position = cssObj.position||"absolute";
 			father = this.father;
 			if (father && father.webObj) {
 				father.webObj.appendChild(div);
@@ -107,15 +108,16 @@ __Proto=JAXHudView.prototype=new JAXHudObj();
 		if (cssObj.faces) {
 			cssObj.jaxObjHash = 1;
 		}
+		if(cssObj.jaxId){
+			this["#self"]=this;
+			//添加这个Hud
+			jaxEnv.addHashObj("#"+cssObj.jaxId, this);
+		}
 		this.jaxEnv.pushHudView(this);
 		//确定StateObj:
 		stateObj=cssObj.hudState;
 		if(stateObj){
 			ownerState=father?father.stateObj:(owner?owner.stateObj:null);
-			if(cssObj.jaxId){
-				//添加这个Hud
-				jaxEnv.addHashObj("#"+cssObj.jaxId, this);
-			}
 			if(!stateObj.isJAXHudState) {
 				stateObj = jaxHudState(this.jaxEnv, stateObj);
 			}

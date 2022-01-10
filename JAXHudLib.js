@@ -1,3 +1,9 @@
+import {JAXEnv,$V,$JXV} from "./JAXEnv.js";
+import {JAXDisk} from "./JAXDisk.js";
+import {JAXApp} from "./JAXApp.js";
+import {JAXDataObj} from "./JAXDataObj.js";
+import {jaxHudState} from "./JAXHudState.js";
+
 import {JAXAni} from "./JAXAni.js";
 import {JAXAniHtml} from "./JAXAniHtml.js";
 import {JAXAniFade} from "./JAXAniFade.js";
@@ -19,6 +25,10 @@ import {JAXHudGroup} from "./JAXHudGroup.js";
 import {JAXUIDock} from "./JAXUIDock.js";
 
 export {
+	JAXEnv,$V,$JXV,
+	JAXDisk,
+	JAXApp,JAXDataObj,
+	jaxHudState,
 	JAXAni,JAXAniHtml,JAXAniFade,JAXAniPose,JAXAniAuto,
 	JAXHudObj, JAXHudView,JAXHudLayer, JAXHudBox, JAXHudText, JAXHudImage, JAXHudBtn,JAXHudEditBox,
 	JAXHudScrollBox, JAXHudTree, JAXHudList,JAXHudGroup,JAXUIDock

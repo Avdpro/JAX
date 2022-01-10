@@ -1,4 +1,4 @@
-import {$JXV} from "./JAXEnv.js";
+import {JAXEnv,$JXV,$V} from "./JAXEnv.js";
 import {JAXHudObj} from "./JAXHudObj.js";
 import {jaxHudState} from "./JAXHudState.js";
 
@@ -22,7 +22,10 @@ JAXHudText=function(jaxEnv)
 	var text;
 	var textW,textH;
 	var _attrChanged;
+	var hasNewText;
+	var htmlText;
 	var signUpdate;
+	var cursor=null;
 	var self=this;
 
 	JAXHudObj.call(this,jaxEnv);
@@ -48,6 +51,7 @@ JAXHudText=function(jaxEnv)
 	alignV=TXT_ALIGN_TOP;
 
 	text="Text";
+	htmlText=0;
 
 	hasShadow=0;
 	shdwBlur=3;
@@ -76,22 +80,59 @@ JAXHudText=function(jaxEnv)
 		//文本:
 		Object.defineProperty(this, 'text', {
 			get: function () {
-				return text;
+				if(hasNewText){
+					this._syncWebObjAttr();
+				}
+				if(htmlText){
+					return this.innerDiv.innerHTML;
+				}
+				return this.innerDiv.innerText;
 			},
 			set: function (v) {
 				if(v instanceof $JXV){
 					let oldV;
-					oldV=valJXVMap['text'];
-					if(oldV){
+					oldV = valJXVMap.get('text');
+					if (oldV) {
 						oldV.untrace();
 						valJXVMap.delete('text');
 					}
-					v.trace(this.stateObj,this,'text',hudView);
-					valJXVMap.set('text',v);
+					if(v.traces!==0) {
+						v.trace(this.stateObj, this, 'text', hudView);
+						valJXVMap.set('text', v);
+					}
 					v=v.val;
 				}
 				if(v!==text){
 					text=v;
+					hasNewText=1;
+					_attrChanged = 1;
+					signUpdate();
+				}
+			},
+			enumerable: true
+		});
+
+		//文本:
+		Object.defineProperty(this, 'htmlText', {
+			get: function () {
+				return htmlText?1:0;
+			},
+			set: function (v) {
+				if(v instanceof $JXV){
+					let oldV;
+					oldV = valJXVMap.get('htmlText');
+					if (oldV) {
+						oldV.untrace();
+						valJXVMap.delete('htmlText');
+					}
+					if(v.traces!==0) {
+						v.trace(this.stateObj, this, 'htmlText', hudView);
+						valJXVMap.set('htmlText', v);
+					}
+					v=v.val;
+				}
+				if(v!==text){
+					htmlText=v?1:0;
 					_attrChanged = 1;
 					signUpdate();
 				}
@@ -107,13 +148,15 @@ JAXHudText=function(jaxEnv)
 			set: function (v) {
 				if(v instanceof $JXV){
 					let oldV;
-					oldV=valJXVMap['autoSize'];
-					if(oldV){
+					oldV = valJXVMap.get('autoSize');
+					if (oldV) {
 						oldV.untrace();
 						valJXVMap.delete('autoSize');
 					}
-					v.trace(this.stateObj,this,'autoSize',hudView);
-					valJXVMap.set('autoSize',v);
+					if(v.traces!==0) {
+						v.trace(this.stateObj, this, 'autoSize', hudView);
+						valJXVMap.set('autoSize', v);
+					}
 					v=v.val;
 				}
 				v=v?1:0;
@@ -133,13 +176,15 @@ JAXHudText=function(jaxEnv)
 			set: function (v) {
 				if(v instanceof $JXV){
 					let oldV;
-					oldV=valJXVMap['autoSizeW'];
-					if(oldV){
+					oldV = valJXVMap.get('autoSizeW');
+					if (oldV) {
 						oldV.untrace();
 						valJXVMap.delete('autoSizeW');
 					}
-					v.trace(this.stateObj,this,'autoSizeW',hudView);
-					valJXVMap.set('autoSizeW',v);
+					if(v.traces!==0) {
+						v.trace(this.stateObj, this, 'autoSizeW', hudView);
+						valJXVMap.set('autoSizeW', v);
+					}
 					v=v.val;
 				}
 				v=v?1:0;
@@ -160,13 +205,15 @@ JAXHudText=function(jaxEnv)
 			set: function (v) {
 				if(v instanceof $JXV){
 					let oldV;
-					oldV=valJXVMap['autoSizeH'];
-					if(oldV){
+					oldV = valJXVMap.get('autoSizeH');
+					if (oldV) {
 						oldV.untrace();
 						valJXVMap.delete('autoSizeH');
 					}
-					v.trace(this.stateObj,this,'autoSizeH',hudView);
-					valJXVMap.set('autoSizeH',v);
+					if(v.traces!==0) {
+						v.trace(this.stateObj, this, 'autoSizeH', hudView);
+						valJXVMap.set('autoSizeH', v);
+					}
 					v=v.val;
 				}
 				v=v?1:0;
@@ -187,13 +234,15 @@ JAXHudText=function(jaxEnv)
 			set: function (v) {
 				if(v instanceof $JXV){
 					let oldV;
-					oldV=valJXVMap['select'];
-					if(oldV){
+					oldV = valJXVMap.get('select');
+					if (oldV) {
 						oldV.untrace();
 						valJXVMap.delete('select');
 					}
-					v.trace(this.stateObj,this,'select',hudView);
-					valJXVMap.set('select',v);
+					if(v.traces!==0) {
+						v.trace(this.stateObj, this, 'select', hudView);
+						valJXVMap.set('select', v);
+					}
 					v=v.val;
 				}
 				v=v?1:0;
@@ -201,6 +250,40 @@ JAXHudText=function(jaxEnv)
 					select=v;
 					_attrChanged = 1;
 					signUpdate();
+					if(!cursor){
+						if(!select){
+							self.cursor="default";
+						}else{
+							self.cursor="text";
+						}
+					}
+				}
+			},
+			enumerable: true
+		});
+
+		//文本是否可以选中:
+		Object.defineProperty(this, 'editable', {
+			get: function () {
+				return select;
+			},
+			set: function (v) {
+				if(v instanceof $JXV){
+					let oldV;
+					oldV = valJXVMap.get('editable');
+					if (oldV) {
+						oldV.untrace();
+						valJXVMap.delete('editable');
+					}
+					if(v.traces!==0) {
+						v.trace(this.stateObj, this, 'editable', hudView);
+						valJXVMap.set('select', v);
+					}
+					v=v.val;
+				}
+				v=v?1:0;
+				if(v){
+					this.innerDiv.contentEditable=!!v;
 				}
 			},
 			enumerable: true
@@ -214,13 +297,15 @@ JAXHudText=function(jaxEnv)
 			set: function (v) {
 				if(v instanceof $JXV){
 					let oldV;
-					oldV=valJXVMap['wrap'];
-					if(oldV){
+					oldV = valJXVMap.get('wrap');
+					if (oldV) {
 						oldV.untrace();
 						valJXVMap.delete('wrap');
 					}
-					v.trace(this.stateObj,this,'wrap',hudView);
-					valJXVMap.set('wrap',v);
+					if(v.traces!==0) {
+						v.trace(this.stateObj, this, 'wrap', hudView);
+						valJXVMap.set('wrap', v);
+					}
 					v=v.val;
 				}
 				v=v?1:0;
@@ -241,13 +326,15 @@ JAXHudText=function(jaxEnv)
 			set: function (v) {
 				if(v instanceof $JXV){
 					let oldV;
-					oldV=valJXVMap['ellipsis'];
-					if(oldV){
+					oldV = valJXVMap.get('ellipsis');
+					if (oldV) {
 						oldV.untrace();
 						valJXVMap.delete('ellipsis');
 					}
-					v.trace(this.stateObj,this,'ellipsis',hudView);
-					valJXVMap.set('ellipsis',v);
+					if(v.traces!==0) {
+						v.trace(this.stateObj, this, 'ellipsis', hudView);
+						valJXVMap.set('ellipsis', v);
+					}
 					v=v.val;
 				}
 				v=v?1:0;
@@ -268,13 +355,15 @@ JAXHudText=function(jaxEnv)
 			set: function (v) {
 				if(v instanceof $JXV){
 					let oldV;
-					oldV=valJXVMap['alignH'];
-					if(oldV){
+					oldV = valJXVMap.get('alignH');
+					if (oldV) {
 						oldV.untrace();
 						valJXVMap.delete('alignH');
 					}
-					v.trace(this.stateObj,this,'alignH',hudView);
-					valJXVMap.set('alignH',v);
+					if(v.traces!==0) {
+						v.trace(this.stateObj, this, 'alignH', hudView);
+						valJXVMap.set('alignH', v);
+					}
 					v=v.val;
 				}
 				v = v===TXT_ALIGN_LEFT?TXT_ALIGN_LEFT:(v===TXT_ALIGN_RIGHT?TXT_ALIGN_RIGHT:TXT_ALIGN_CENTER);
@@ -295,13 +384,15 @@ JAXHudText=function(jaxEnv)
 			set: function (v) {
 				if(v instanceof $JXV){
 					let oldV;
-					oldV=valJXVMap['alignV'];
-					if(oldV){
+					oldV = valJXVMap.get('alignV');
+					if (oldV) {
 						oldV.untrace();
 						valJXVMap.delete('alignV');
 					}
-					v.trace(this.stateObj,this,'alignV',hudView);
-					valJXVMap.set('alignV',v);
+					if(v.traces!==0) {
+						v.trace(this.stateObj, this, 'alignV', hudView);
+						valJXVMap.set('alignV', v);
+					}
 					v=v.val;
 				}
 				v = v===TXT_ALIGN_TOP?TXT_ALIGN_TOP:(v===TXT_ALIGN_BOTTOM?TXT_ALIGN_BOTTOM:TXT_ALIGN_CENTER);
@@ -322,13 +413,15 @@ JAXHudText=function(jaxEnv)
 			set: function (v) {
 				if(v instanceof $JXV){
 					let oldV;
-					oldV=valJXVMap['font'];
-					if(oldV){
+					oldV = valJXVMap.get('font');
+					if (oldV) {
 						oldV.untrace();
 						valJXVMap.delete('font');
 					}
-					v.trace(this.stateObj,this,'font',hudView);
-					valJXVMap.set('font',v);
+					if(v.traces!==0) {
+						v.trace(this.stateObj, this, 'font', hudView);
+						valJXVMap.set('font', v);
+					}
 					v=v.val;
 				}
 				if (v!==fntName) {
@@ -348,13 +441,15 @@ JAXHudText=function(jaxEnv)
 			set: function (v) {
 				if(v instanceof $JXV){
 					let oldV;
-					oldV=valJXVMap['color'];
-					if(oldV){
+					oldV = valJXVMap.get('color');
+					if (oldV) {
 						oldV.untrace();
 						valJXVMap.delete('color');
 					}
-					v.trace(this.stateObj,this,'color',hudView);
-					valJXVMap.set('color',v);
+					if(v.traces!==0) {
+						v.trace(this.stateObj, this, 'color', hudView);
+						valJXVMap.set('color', v);
+					}
 					v=v.val;
 				}
 				if (Array.isArray(v)) {
@@ -362,7 +457,7 @@ JAXHudText=function(jaxEnv)
 					color[1] = v[1];
 					color[2] = v[2];
 				} else if (typeof (v) === 'string') {
-					//TODO: Code this:
+					[color[0],color[1],color[2],color[3]]=JAXEnv.parseColor(v);
 				} else if (typeof (v) === 'number') {
 					//TODO: Code this:
 				}
@@ -380,13 +475,15 @@ JAXHudText=function(jaxEnv)
 			set: function (v) {
 				if(v instanceof $JXV){
 					let oldV;
-					oldV=valJXVMap['fontSize'];
-					if(oldV){
+					oldV = valJXVMap.get('fontSize');
+					if (oldV) {
 						oldV.untrace();
 						valJXVMap.delete('fontSize');
 					}
-					v.trace(this.stateObj,this,'fontSize',hudView);
-					valJXVMap.set('fontSize',v);
+					if(v.traces!==0) {
+						v.trace(this.stateObj, this, 'fontSize', hudView);
+						valJXVMap.set('fontSize', v);
+					}
 					v=v.val;
 				}
 				if (v!==fntSize) {
@@ -406,13 +503,15 @@ JAXHudText=function(jaxEnv)
 			set: function (v) {
 				if(v instanceof $JXV){
 					let oldV;
-					oldV=valJXVMap['bold'];
-					if(oldV){
+					oldV = valJXVMap.get('bold');
+					if (oldV) {
 						oldV.untrace();
 						valJXVMap.delete('bold');
 					}
-					v.trace(this.stateObj,this,'bold',hudView);
-					valJXVMap.set('bold',v);
+					if(v.traces!==0) {
+						v.trace(this.stateObj, this, 'bold', hudView);
+						valJXVMap.set('bold', v);
+					}
 					v=v.val;
 				}
 				if (v!==fntBold) {
@@ -432,13 +531,15 @@ JAXHudText=function(jaxEnv)
 			set: function (v) {
 				if(v instanceof $JXV){
 					let oldV;
-					oldV=valJXVMap['italic'];
-					if(oldV){
+					oldV = valJXVMap.get('italic');
+					if (oldV) {
 						oldV.untrace();
 						valJXVMap.delete('italic');
 					}
-					v.trace(this.stateObj,this,'italic',hudView);
-					valJXVMap.set('italic',v);
+					if(v.traces!==0) {
+						v.trace(this.stateObj, this, 'italic', hudView);
+						valJXVMap.set('italic', v);
+					}
 					v=v.val;
 				}
 				if (v!==fntItalic) {
@@ -458,13 +559,15 @@ JAXHudText=function(jaxEnv)
 			set: function (v) {
 				if(v instanceof $JXV){
 					let oldV;
-					oldV=valJXVMap['underline'];
-					if(oldV){
+					oldV = valJXVMap.get('underline');
+					if (oldV) {
 						oldV.untrace();
 						valJXVMap.delete('underline');
 					}
-					v.trace(this.stateObj,this,'underline',hudView);
-					valJXVMap.set('underline',v);
+					if(v.traces!==0) {
+						v.trace(this.stateObj, this, 'underline', hudView);
+						valJXVMap.set('underline', v);
+					}
 					v=v.val;
 				}
 				if (v!==fntUnderline) {
@@ -497,6 +600,45 @@ JAXHudText=function(jaxEnv)
 			},
 			enumerable: true
 		});
+		
+		//控件光标:
+		Object.defineProperty(this, 'cursor', {
+			get: function () {
+				return cursor;
+			},
+			set: function (v) {
+				if(v instanceof $JXV){
+					let oldV;
+					oldV = valJXVMap.get('clip');
+					if (oldV) {
+						oldV.untrace();
+						valJXVMap.delete('clip');
+					}
+					if(v.traces!==0) {
+						v.trace(this.stateObj, this, 'clip', hudView);
+						valJXVMap.set('clip', v);
+					}
+					v=v.val;
+				}
+				if (cursor !== v) {
+					cursor=v;
+					if(this.webObj) {
+						if (cursor) {
+							this.innerDiv.style.cursor=v;
+							this.webObj.style.cursor=v;
+						}else{
+							if(select){
+								this.innerDiv.style.cursor="auto";
+								this.webObj.style.cursor = "auto";
+							}else {
+								this.webObj.style.cursor = "auto";
+							}
+						}
+					}
+				}
+			},
+			enumerable: true,
+		});
 	}
 
 	//***********************************************************************
@@ -509,6 +651,8 @@ JAXHudText=function(jaxEnv)
 			div=self.innerDiv;
 			style=self.innerDiv.style;
 			style.userSelect=select?"text":"none";
+			style.webkitUserSelect=select?"text":"none";
+			style.webkitTouchCallout=select?"text":"none";
 			if(self.italic) {
 				style.fontStyle="italic";
 			}else{
@@ -537,15 +681,26 @@ JAXHudText=function(jaxEnv)
 
 		//左上角对齐的文本设置:
 		let _setText_LeftTop=function(){
-			var div,parentElmt,style;
+			var div,parentElmt,style,offParent;
 
 			div=self.innerDiv;
 			style=div.style;
 			delete self.webObj.style.display;
 			delete self.webObj.style.alignItems;
 			style.position="absolute";
+
+			offParent=div.offsetParent;
+			if(!offParent) {
+				parentElmt = div.parentElement;
+				if (parentElmt) {
+					parentElmt.removeChild(div);
+				}
+				self.jaxEnv.textSizeDiv.appendChild(div);
+			}
+
 			if(self.wrap){
 				style.width=self.w+"px";
+				//style.width="100%";
 				style.height="";
 				style.wordBreak="break-word";
 				style.whiteSpace="";
@@ -558,9 +713,9 @@ JAXHudText=function(jaxEnv)
 				delete style.alignSelf;
 				delete style.textAlign;
 				if(ellipsis){
-					delete style.wordBreak;
+					//style.width="100%";
+					style.width=self.w+"px";
 					style.whiteSpace="nowrap";
-					style.width="100%";
 					style.overflow="hidden";
 					style.textOverflow="ellipsis";
 				}else{
@@ -570,17 +725,26 @@ JAXHudText=function(jaxEnv)
 					style.textOverflow="";
 				}
 			}
-			parentElmt=div.parentElement;
-			if(parentElmt){
-				parentElmt.removeChild(div);
+			if(htmlText) {
+				div.innerHTML = text;
+			}else{
+				div.innerText=text;
 			}
-			self.jaxEnv.textSizeDiv.appendChild(div);
-			div.innerHTML=text;
+			hasNewText=0;
 			textW=div.offsetWidth;
 			textH=div.offsetHeight;
-			self.jaxEnv.textSizeDiv.removeChild(div);
-			if(parentElmt){
-				parentElmt.appendChild(div);
+
+			if(!offParent) {
+				self.jaxEnv.textSizeDiv.removeChild(div);
+				if (parentElmt) {
+					let next;
+					next = parentElmt.firstChild;
+					if (next) {
+						parentElmt.insertBefore(div, next);
+					} else {
+						parentElmt.appendChild(div);
+					}
+				}
 			}
 			//console.log('textW='+textW+" textH="+textH);
 			if(self.autoSizeW) {
@@ -633,6 +797,10 @@ JAXHudText=function(jaxEnv)
 			if(self.autoSizeW) {
 				div.style.left = "0px";
 			}else {
+				//处理wrap情况
+				if(self.wrap || self.ellipsis) {
+					style.width = self.w + "px";
+				}
 				switch (alignH) {
 					case TXT_ALIGN_LEFT: {
 						div.style.left = "0px";
@@ -678,7 +846,7 @@ JAXHudText=function(jaxEnv)
 				_attrChanged=0;
 				return;
 			}
-			innerDiv.innerHTML=text;
+			innerDiv.innerHTML=""+text;
 
 			//设置字体:
 			_setFont();
@@ -700,7 +868,7 @@ JAXHudText.prototype=__Proto;
 {
 	//CSS属性列表
 	JAXHudText.jaxPptSet=new Set(Array.from(JAXHudObj.jaxPptSet).concat([
-		'text','autoSize','autoSizeW','autoSizeH','wrap','ellipsis','alignH','alignV','select',
+		'text','htmlText','autoSize','autoSizeW','autoSizeH','wrap','ellipsis','alignH','alignV','select','editable',
 		'font','color','fontSize','bold','italic','underline'
 	]));
 
@@ -729,7 +897,7 @@ JAXHudText.prototype=__Proto;
 		this.removeAllChildren();
 		if(!this.webObj) {
 			div = this.webObj = document.createElement('div');
-			div.style.position = "absolute";
+			div.style.position = cssObj.position||"absolute";
 			father = this.father;
 			if (father && father.webObj) {
 				father.webObj.appendChild(div);
@@ -741,19 +909,21 @@ JAXHudText.prototype=__Proto;
 				div.appendChild(txtDiv);
 				txtDiv.id="TextDiv";
 				this.innerDiv=txtDiv;
+				txtDiv.style.cursor="default";
 			}
 		}
 		if(cssObj.faces){
 			cssObj.jaxObjHash=1;
 		}
+		if(cssObj.jaxId){
+			this["#self"]=this;
+			//添加这个Hud
+			jaxEnv.addHashObj("#"+cssObj.jaxId, this);
+		}
 		//确定StateObj:
 		var stateObj=cssObj.hudState;
 		if(stateObj){
 			ownerState=father?father.stateObj:(owner?owner.stateObj:null);
-			if(cssObj.jaxId){
-				//添加这个Hud
-				jaxEnv.addHashObj("#"+cssObj.jaxId, this);
-			}
 			if(!stateObj.isJAXHudState) {
 				stateObj = jaxHudState(this.jaxEnv, stateObj);
 			}
@@ -799,6 +969,42 @@ JAXHudText.prototype=__Proto;
 		if(stateObj){
 			this.jaxEnv.popHudState(stateObj);
 		}
+		if(this.editable){
+			let div=this.innerDiv;
+			let self;
+			self=this;
+			div.onfocus=function(){
+				if(self.selectOnFocus){
+					self.selectAll();
+				}
+				if(self.OnFocus){
+					self.OnFocus();
+				}
+				console.log("Focus");
+			};
+			div.onblur=function(){
+				if(self.OnBlur){
+					self.OnBlur();
+				}
+				console.log("Blur");
+			};
+			div.oninput=function(){
+				if(self.OnInput){
+					self.OnInput();
+				}
+			};
+			div.onkeyup=function(evt){
+				if(evt.code==="Enter"){
+					if(self.OnUpdate){
+						self.OnUpdate();
+					}
+				}else if(evt.code==="Escape"){
+					if(self.OnCancel){
+						self.OnCancel();
+					}
+				}
+			};
+		}
 		// if(cssObj.jaxObjHash){
 		// 	this.jaxEnv.popObjHasher(this);
 		// }
@@ -830,6 +1036,56 @@ JAXHudText.prototype=__Proto;
 		}
 	};
 
+	//---------------------------------------------------------------
+	//开始编辑
+	__Proto.startEdit=function(){
+		if(this.attrChanged){
+			this._syncWebObjAttr();
+		}
+		if(this.poseChanged) {
+			this._syncWebObj();
+		}
+		this.innerDiv.focus();
+		if(this.selectOnFocus){
+			this.selectAll();
+		}
+	};
+
+	//---------------------------------------------------------------
+	//结束编辑
+	__Proto.endEdit=function(){
+		if(this.attrChanged){
+			this._syncWebObjAttr();
+		}
+		if(this.poseChanged) {
+			this._syncWebObj();
+		}
+		this.innerDiv.blur();
+	};
+
+	//---------------------------------------------------------------
+	//选中全部文本
+	__Proto.selectAll=function(){
+		if(this.attrChanged){
+			this._syncWebObjAttr();
+		}
+		this.innerDiv.setSelectionRange(0,this.innerDiv.value.length);
+	};
+	
+	//---------------------------------------------------------------
+	//控件被点击消息:
+	__Proto.OnMouseClick=function(e)
+	{
+		if(this.isGenEvent){
+			if(e.srcElement===this.innerDiv && this.OnClickFunc_) {
+				e.stopPropagation();
+				this.OnClickFunc_.call(this, e);
+			}else if(this.OnTreeClickFunc_){
+				e.stopPropagation();
+				this.OnTreeClickFunc_.call(this, e);
+			}
+		}
+	};
 }
 
 export {JAXHudText};

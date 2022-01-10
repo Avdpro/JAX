@@ -21,7 +21,7 @@ JAXHudObj=function(jaxEnv)
 {
 	var self,valJXVMap;
 	var signUpdate_,signUpdate,isSignedUpdate;
-	var jaxId,pos,size,autoLayout;
+	var jaxId,position,pos,size,autoLayout;
 	var display,uiEvent,id,jaxObjHash,anchorH,anchorV,clip;
 	var layoutXFunc_,layoutYFunc_,layoutWFunc_,layoutHFunc_;
 	var oldW,oldH;
@@ -47,6 +47,7 @@ JAXHudObj=function(jaxEnv)
 	this.$valJXVMap=valJXVMap;
 
 	id="";
+	position="absolute";
 	pos=[0,0,0];
 	size=[0,0,0];
 	this.jaxAcceptMsg=1;
@@ -99,6 +100,7 @@ JAXHudObj=function(jaxEnv)
 
 	//消息相关变量:
 	this.OnClickFunc_=null;
+	this.OnTreeClickFunc_=null;
 	this.OnScrollFunc_=null;
 	this.OnLayoutFunc_=null;
 	this.OnMouseInOutFunc_=null;
@@ -108,8 +110,6 @@ JAXHudObj=function(jaxEnv)
 	Object.defineProperty(this, 'jgxEnv', {enumerable:false,writable:false});
 	Object.defineProperty(this, 'webObj', {enumerable:false,writable:true});
 	Object.defineProperty(this, 'app', {enumerable:false,writable:false});
-	//Object.defineProperty(this, 'jaxId', {enumerable:false,writable:true});
-	//Object.defineProperty(this, 'jaxObjHash', {enumerable:false,writable:true});
 	Object.defineProperty(this, 'father_', {enumerable:false,writable:true});
 	Object.defineProperty(this, 'owner_', {enumerable:false,writable:true});
 	Object.defineProperty(this, 'chdHudList_', {enumerable:false,writable:true});
@@ -184,15 +184,17 @@ JAXHudObj=function(jaxEnv)
 					return id;
 				},
 				set: function (v) {
-					let oldV;
 					if(v instanceof $JXV){
-						oldV=valJXVMap['id'];
-						if(oldV){
+						let oldV;
+						oldV = valJXVMap.get('id');
+						if (oldV) {
 							oldV.untrace();
 							valJXVMap.delete('id');
 						}
-						v.trace(this.stateObj,this,'id',hudView);
-						valJXVMap.set('id',v);
+						if(v.traces!==0) {
+							v.trace(this.stateObj, this, 'id', hudView);
+							valJXVMap.set('id', v);
+						}
 						v=v.val;
 					}
 					if (id !== v) {
@@ -212,21 +214,41 @@ JAXHudObj=function(jaxEnv)
 		//-------------------------------------------------------------------
 		//尺寸/坐标/对齐:
 		{
+			//Position:
+			Object.defineProperty(this,'position',{
+				get:function(){
+					return position;
+				},
+				set:function(v){
+					if(v!==position){
+						let webObj;
+						position=v;
+						webObj=self.webObj;
+						if(webObj){
+							webObj.style.position=v;
+						}
+					}
+				},
+				enumerable: true,
+				configurable:true
+			});
 			//控件是否自动排版
 			Object.defineProperty(this, 'autoLayout', {
 				get:function(){
 					return autoLayout
 				},
 				set:function(v){
-					let oldV;
 					if(v instanceof $JXV){
-						oldV=valJXVMap['autoLayout'];
-						if(oldV){
+						let oldV;
+						oldV = valJXVMap.get('autoLayout');
+						if (oldV) {
 							oldV.untrace();
 							valJXVMap.delete('autoLayout');
 						}
-						v.trace(this.stateObj,this,'autoLayout',hudView);
-						valJXVMap.set('autoLayout',v);
+						if(v.traces!==0) {
+							v.trace(this.stateObj, this, 'autoLayout', hudView);
+							valJXVMap.set('autoLayout', v);
+						}
 						v=v.val;
 					}
 					if(v!==autoLayout){
@@ -261,26 +283,29 @@ JAXHudObj=function(jaxEnv)
 				set: function (v) {
 					if(v instanceof $JXV){
 						let oldV;
-						oldV=valJXVMap['w'];
-						if(oldV){
+						oldV = valJXVMap.get('w');
+						if (oldV) {
 							oldV.untrace();
 							valJXVMap.delete('w');
 						}
-						v.trace(this.stateObj,this,'w',hudView);
-						valJXVMap.set('w',v);
+						if(v.traces!==0) {
+							v.trace(this.stateObj, this, 'w', hudView);
+							valJXVMap.set('w', v);
+						}
 						v=v.val;
 					}
 					if(typeof(v)==="string"){
 						var func,father;
 						func=new Function("FW","FH","return ("+v+")");
-						father=this.father;
-						father=father?father:this.owner;
+						father=this.father_||this.owner_;
 						layoutWFunc_=func;
-						v=func(father.clientW,father.clientH);
-						if (size[0] !== v) {
-							size[0] = v;
-							_poseChanged = 1;
-							signUpdate();
+						if(father) {
+							v = func(father.clientW, father.clientH);
+							if (size[0] !== v) {
+								size[0] = v;
+								_poseChanged = 1;
+								signUpdate();
+							}
 						}
 					}else{
 						if (size[0] !== v) {
@@ -303,26 +328,29 @@ JAXHudObj=function(jaxEnv)
 				set: function (v) {
 					if(v instanceof $JXV){
 						let oldV;
-						oldV=valJXVMap['h'];
-						if(oldV){
+						oldV = valJXVMap.get('h');
+						if (oldV) {
 							oldV.untrace();
 							valJXVMap.delete('h');
 						}
-						v.trace(this.stateObj,this,'h',hudView);
-						valJXVMap.set('h',v);
+						if(v.traces!==0) {
+							v.trace(this.stateObj, this, 'h', hudView);
+							valJXVMap.set('h', v);
+						}
 						v=v.val;
 					}
 					if(typeof(v)==="string"){
 						var func,father;
 						func=new Function("FW","FH","return ("+v+")");
-						father=this.father;
-						father=father?father:this.owner;
+						father=this.father_||this.owner_;
 						layoutHFunc_=func;
-						v=func(father.clientW,father.clientH);
-						if (size[1] !== v) {
-							size[1] = v;
-							_poseChanged = 1;
-							signUpdate();
+						if(father) {
+							v = func(father.clientW, father.clientH);
+							if (size[1] !== v) {
+								size[1] = v;
+								_poseChanged = 1;
+								signUpdate();
+							}
 						}
 					}else{
 						if (size[1] !== v) {
@@ -344,26 +372,29 @@ JAXHudObj=function(jaxEnv)
 				set: function (v) {
 					if(v instanceof $JXV){
 						let oldV;
-						oldV=valJXVMap['x'];
-						if(oldV){
+						oldV = valJXVMap.get('x');
+						if (oldV) {
 							oldV.untrace();
 							valJXVMap.delete('x');
 						}
-						v.trace(this.stateObj,this,'x',hudView);
-						valJXVMap.set('x',v);
+						if(v.traces!==0) {
+							v.trace(this.stateObj, this, 'x', hudView);
+							valJXVMap.set('x', v);
+						}
 						v=v.val;
 					}
 					if(typeof(v)==="string"){
 						var func,father;
 						func=new Function("FW","FH","return ("+v+")");
-						father=this.father;
-						father=father?father:this.owner;
+						father=this.father_||this.owner_;
 						layoutXFunc_=func;
-						v=func(father.clientW,father.clientH);
-						if (pos[0] !== v) {
-							pos[0] = v;
-							_poseChanged = 1;
-							signUpdate();
+						if(father) {
+							v = func(father.clientW, father.clientH);
+							if (pos[0] !== v) {
+								pos[0] = v;
+								_poseChanged = 1;
+								signUpdate();
+							}
 						}
 					}else{
 						if (v !== pos[0]) {
@@ -385,26 +416,29 @@ JAXHudObj=function(jaxEnv)
 				set: function (v) {
 					if(v instanceof $JXV){
 						let oldV;
-						oldV=valJXVMap['y'];
-						if(oldV){
+						oldV = valJXVMap.get('y');
+						if (oldV) {
 							oldV.untrace();
 							valJXVMap.delete('y');
 						}
-						v.trace(this.stateObj,this,'y',hudView);
-						valJXVMap.set('y',v);
+						if(v.traces!==0) {
+							v.trace(this.stateObj, this, 'y', hudView);
+							valJXVMap.set('y', v);
+						}
 						v=v.val;
 					}
 					if(typeof(v)==="string"){
 						var func,father;
 						func=new Function("FW","FH","return ("+v+")");
-						father=this.father;
-						father=father?father:this.owner;
+						father=this.father_||this.owner;
 						layoutYFunc_=func;
-						v=func(father.clientW,father.clientH);
-						if (pos[1] !== v) {
-							pos[1] = v;
-							_poseChanged = 1;
-							signUpdate();
+						if(father) {
+							v = func(father.clientW, father.clientH);
+							if (pos[1] !== v) {
+								pos[1] = v;
+								_poseChanged = 1;
+								signUpdate();
+							}
 						}
 					}else{
 						if (v !== pos[1]) {
@@ -426,13 +460,15 @@ JAXHudObj=function(jaxEnv)
 				set: function (v) {
 					if(v instanceof $JXV){
 						let oldV;
-						oldV=valJXVMap['zIndex'];
-						if(oldV){
+						oldV = valJXVMap.get('zIndex');
+						if (oldV) {
 							oldV.untrace();
 							valJXVMap.delete('zIndex');
 						}
-						v.trace(this.stateObj,this,'zIndex',hudView);
-						valJXVMap.set('zIndex',v);
+						if(v.traces!==0) {
+							v.trace(this.stateObj, this, 'zIndex', hudView);
+							valJXVMap.set('zIndex', v);
+						}
 						v=v.val;
 					}
 					if(this.webObj){
@@ -450,13 +486,15 @@ JAXHudObj=function(jaxEnv)
 				set: function (v) {
 					if(v instanceof $JXV){
 						let oldV;
-						oldV=valJXVMap['anchorH'];
-						if(oldV){
+						oldV = valJXVMap.get('anchorH');
+						if (oldV) {
 							oldV.untrace();
 							valJXVMap.delete('anchorH');
 						}
-						v.trace(this.stateObj,this,'anchorH',hudView);
-						valJXVMap.set('anchorH',v);
+						if(v.traces!==0) {
+							v.trace(this.stateObj, this, 'anchorH', hudView);
+							valJXVMap.set('anchorH', v);
+						}
 						v=v.val;
 					}
 					if (v !== anchorH) {
@@ -477,13 +515,15 @@ JAXHudObj=function(jaxEnv)
 				set: function (v) {
 					if(v instanceof $JXV){
 						let oldV;
-						oldV=valJXVMap['anchorV'];
-						if(oldV){
+						oldV = valJXVMap.get('anchorV');
+						if (oldV) {
 							oldV.untrace();
 							valJXVMap.delete('anchorV');
 						}
-						v.trace(this.stateObj,this,'anchorV',hudView);
-						valJXVMap.set('anchorV',v);
+						if(v.traces!==0) {
+							v.trace(this.stateObj, this, 'anchorV', hudView);
+							valJXVMap.set('anchorV', v);
+						}
 						v=v.val;
 					}
 					if (v !== anchorV) {
@@ -600,13 +640,15 @@ JAXHudObj=function(jaxEnv)
 				set: function (v) {
 					if(v instanceof $JXV){
 						let oldV;
-						oldV=valJXVMap['display'];
-						if(oldV){
+						oldV = valJXVMap.get('display');
+						if (oldV) {
 							oldV.untrace();
 							valJXVMap.delete('display');
 						}
-						v.trace(this.stateObj,this,'display',hudView);
-						valJXVMap.set('display',v);
+						if(v.traces!==0) {
+							v.trace(this.stateObj, this, 'display', hudView);
+							valJXVMap.set('display', v);
+						}
 						v=v.val;
 					}
 					if (display !== v) {
@@ -616,6 +658,7 @@ JAXHudObj=function(jaxEnv)
 					}
 				},
 				enumerable: true,
+				configurable:true,
 			});
 
 			//控件是否裁剪子控件:
@@ -626,13 +669,15 @@ JAXHudObj=function(jaxEnv)
 				set: function (v) {
 					if(v instanceof $JXV){
 						let oldV;
-						oldV=valJXVMap['clip'];
-						if(oldV){
+						oldV = valJXVMap.get('clip');
+						if (oldV) {
 							oldV.untrace();
 							valJXVMap.delete('clip');
 						}
-						v.trace(this.stateObj,this,'clip',hudView);
-						valJXVMap.set('clip',v);
+						if(v.traces!==0) {
+							v.trace(this.stateObj, this, 'clip', hudView);
+							valJXVMap.set('clip', v);
+						}
 						v=v.val;
 					}
 					if (clip !== v) {
@@ -647,6 +692,7 @@ JAXHudObj=function(jaxEnv)
 					}
 				},
 				enumerable: true,
+				configurable:true,
 			});
 
 			//控件的透明度
@@ -657,13 +703,15 @@ JAXHudObj=function(jaxEnv)
 				set:function(v){
 					if(v instanceof $JXV){
 						let oldV;
-						oldV=valJXVMap['alpha'];
-						if(oldV){
+						oldV = valJXVMap.get('alpha');
+						if (oldV) {
 							oldV.untrace();
 							valJXVMap.delete('alpha');
 						}
-						v.trace(this.stateObj,this,'alpha',hudView);
-						valJXVMap.set('alpha',v);
+						if(v.traces!==0) {
+							v.trace(this.stateObj, this, 'alpha', hudView);
+							valJXVMap.set('alpha', v);
+						}
 						v=v.val;
 					}
 					if(v===hudPose.alpha){
@@ -673,6 +721,7 @@ JAXHudObj=function(jaxEnv)
 					_poseChanged=1;
 					signUpdate();
 				},
+				configurable:true,
 				enumerable:true
 			});
 
@@ -684,13 +733,15 @@ JAXHudObj=function(jaxEnv)
 				set:function(v){
 					if(v instanceof $JXV){
 						let oldV;
-						oldV=valJXVMap['scale'];
-						if(oldV){
+						oldV = valJXVMap.get('scale');
+						if (oldV) {
 							oldV.untrace();
 							valJXVMap.delete('scale');
 						}
-						v.trace(this.stateObj,this,'scale',hudView);
-						valJXVMap.set('scale',v);
+						if(v.traces!==0) {
+							v.trace(this.stateObj, this, 'scale', hudView);
+							valJXVMap.set('scale', v);
+						}
 						v=v.val;
 					}
 					if(v===hudPose.scale){
@@ -700,6 +751,7 @@ JAXHudObj=function(jaxEnv)
 					_poseChanged=1;
 					signUpdate();
 				},
+				configurable:true,
 				enumerable:true
 			});
 
@@ -711,13 +763,15 @@ JAXHudObj=function(jaxEnv)
 				set:function(v){
 					if(v instanceof $JXV){
 						let oldV;
-						oldV=valJXVMap['rotate'];
-						if(oldV){
+						oldV = valJXVMap.get('rotate');
+						if (oldV) {
 							oldV.untrace();
 							valJXVMap.delete('rotate');
 						}
-						v.trace(this.stateObj,this,'rotate',hudView);
-						valJXVMap.set('rotate',v);
+						if(v.traces!==0) {
+							v.trace(this.stateObj, this, 'rotate', hudView);
+							valJXVMap.set('rotate', v);
+						}
 						v=v.val;
 					}
 					if(v===hudPose.rot){
@@ -727,6 +781,7 @@ JAXHudObj=function(jaxEnv)
 					_poseChanged=1;
 					signUpdate();
 				},
+				configurable:true,
 				enumerable:true
 			});
 
@@ -738,13 +793,15 @@ JAXHudObj=function(jaxEnv)
 				set:function(v){
 					if(v instanceof $JXV){
 						let oldV;
-						oldV=valJXVMap['grayScale'];
-						if(oldV){
+						oldV = valJXVMap.get('grayScale');
+						if (oldV) {
 							oldV.untrace();
 							valJXVMap.delete('grayScale');
 						}
-						v.trace(this.stateObj,this,'grayScale',hudView);
-						valJXVMap.set('grayScale',v);
+						if(v.traces!==0) {
+							v.trace(this.stateObj, this, 'grayScale', hudView);
+							valJXVMap.set('grayScale', v);
+						}
 						v=v.val;
 					}
 					v=v?1:0;
@@ -755,6 +812,7 @@ JAXHudObj=function(jaxEnv)
 					_poseChanged=1;
 					signUpdate();
 				},
+				configurable:true,
 				enumerable:true
 			});
 
@@ -766,13 +824,15 @@ JAXHudObj=function(jaxEnv)
 				set: function (v) {
 					if(v instanceof $JXV){
 						let oldV;
-						oldV=valJXVMap['clip'];
-						if(oldV){
+						oldV = valJXVMap.get('clip');
+						if (oldV) {
 							oldV.untrace();
 							valJXVMap.delete('clip');
 						}
-						v.trace(this.stateObj,this,'clip',hudView);
-						valJXVMap.set('clip',v);
+						if(v.traces!==0) {
+							v.trace(this.stateObj, this, 'clip', hudView);
+							valJXVMap.set('clip', v);
+						}
 						v=v.val;
 					}
 					if (cursor !== v) {
@@ -786,6 +846,7 @@ JAXHudObj=function(jaxEnv)
 						}
 					}
 				},
+				configurable:true,
 				enumerable: true,
 			});
 
@@ -917,13 +978,15 @@ JAXHudObj=function(jaxEnv)
 				set: function (v) {
 					if(v instanceof $JXV){
 						let oldV;
-						oldV=valJXVMap['uiEvent'];
-						if(oldV){
+						oldV = valJXVMap.get('uiEvent');
+						if (oldV) {
 							oldV.untrace();
 							valJXVMap.delete('uiEvent');
 						}
-						v.trace(this.stateObj,this,'uiEvent',hudView);
-						valJXVMap.set('uiEvent',v);
+						if(v.traces!==0) {
+							v.trace(this.stateObj, this, 'uiEvent', hudView);
+							valJXVMap.set('uiEvent', v);
+						}
 						v=v.val;
 					}
 					if (uiEvent !== v) {
@@ -963,7 +1026,24 @@ JAXHudObj=function(jaxEnv)
 					if (this.OnClickFunc_ !== v) {
 						this.OnClickFunc_ = v;
 						if (this.webObj) {
-							//console.log("Set OnClick!!");
+							this.webObj.onclick = v?function(e){self.OnMouseClick(e);}:null;
+						}
+					}
+				},
+				enumerable: true,
+				configurable:true,
+			});
+
+			//控件的鼠标点击消息:
+			Object.defineProperty(this, 'OnTreeClick', {
+				get: function () {
+					return this.OnTreeClickFunc_;
+				},
+				set: function (v) {
+					var self=this;
+					if (this.OnTreeClickFunc_ !== v) {
+						this.OnTreeClickFunc_ = v;
+						if (this.webObj) {
 							this.webObj.onclick = v?function(e){self.OnMouseClick(e);}:null;
 						}
 					}
@@ -1135,7 +1215,7 @@ JAXHudObj=function(jaxEnv)
 		{
 			this._doLayout=function(){
 				var owner,ow,oh,func;
-				owner=this.father_?this.father_:this.owner_;
+				owner=this.father_||this.owner_;
 				if(owner){
 					ow=owner.clientW;
 					oh=owner.clientH;
@@ -1162,6 +1242,7 @@ JAXHudObj=function(jaxEnv)
 					if(this.OnLayoutFunc_){
 						this.OnLayoutFunc_(ow,oh);
 					}
+					this.update();
 				}
 			};
 
@@ -1224,17 +1305,21 @@ JAXHudObj=function(jaxEnv)
 			//---------------------------------------------------------------
 			//摘除
 			this.detach=function(){
-				attach=0;
-				_poseChanged=1;
-				signUpdate();
+				if(attach) {
+					attach = 0;
+					_poseChanged = 1;
+					signUpdate();
+				}
 			};
 
 			//---------------------------------------------------------------
 			//置回:
 			this.attach=function(){
-				attach=1;
-				_poseChanged=1;
-				signUpdate();
+				if(!attach) {
+					attach = 1;
+					_poseChanged = 1;
+					signUpdate();
+				}
 			};
 
 			//---------------------------------------------------------------
@@ -1575,7 +1660,40 @@ JAXHudObj=function(jaxEnv)
 				var tgtDiv,curDiv,hudObj,dx,dy,scale;
 				tgtDiv=hud?hud.webObj:window.document.body;//this.jaxEnv.jaxDiv;
 				curDiv=this.webObj;
-
+				
+				if(curDiv.offsetParent){
+					let cw,w,h;
+					let cRect=curDiv.getBoundingClientRect();
+					let tRect=tgtDiv.getBoundingClientRect();
+					hudObj=curDiv.jaxObj;
+					cw=cRect.width;
+					w=size[0];
+					h=size[1];
+					dx=cRect.x-tRect.x;
+					dy=cRect.y-tRect.y;
+					switch(hudObj.anchorH){
+						case 0:
+							break;
+						case 1:
+							dx+=hudObj.w*0.5;
+							break;
+						case 2:
+							dx+=hudObj.w;
+							break;
+					}
+					switch(hudObj.anchorV){
+						case 0:
+							break;
+						case 1:
+							dy+=hudObj.h*0.5;
+							break;
+						case 2:
+							dy+=hudObj.h;
+							break;
+					}
+					return [x+dx,y+dy];
+				}
+				
 				if(curDiv && curDiv!==tgtDiv){
 					hudObj=curDiv.jaxObj;
 					if(hudObj){
@@ -1790,7 +1908,11 @@ JAXHudObj=function(jaxEnv)
 											tgtObj = hud;
 										}
 										if (val !== undefined) {
-											tgtObj[attr] = val;
+											if(val instanceof Function){
+												tgtObj[attr] = val.call(self);
+											}else {
+												tgtObj[attr] = val;
+											}
 										}
 									}
 								}
@@ -1825,11 +1947,11 @@ JAXHudObj.prototype=__Proto;
 	JAXHudObj.jaxPptSet=new Set([
 		'id','jaxObjHash','jaxId',
 		'autoLayout',
-		'x','y','w','h','anchorH','anchorV',"zIndex",
+		'position','x','y','w','h','anchorH','anchorV',"zIndex",
 		'ofX','ofY','ofW','ofH',
 		'display','clip','alpha','scale','rotate','cursor',
 		'uiEvent','items',
-		'OnLayout','OnClick','OnMouseInOut',
+		'OnLayout','OnClick','OnTreeClick','OnMouseInOut',
 		'faces'
 	]);
 	var HudTypeHash = {};
@@ -1844,6 +1966,9 @@ JAXHudObj.prototype=__Proto;
 	//根据类型创建Hud控件
 	JAXHudObj.createHudByType = function (typeName, env, father,css,owner) {
 		let typeType,func,hud,obj,isGear=0;
+		if(css.skipCreate){
+			return null;
+		}
 		typeType=typeof(typeName);
 		if(typeType==="string") {
 			func = HudTypeHash[typeName];
@@ -1914,7 +2039,7 @@ JAXHudObj.prototype=__Proto;
 		owner = this.owner;
 		if(!this.webObj) {
 			div = this.webObj = document.createElement('div');
-			div.style.position = "absolute";
+			div.style.position = cssObj.position||"absolute";
 			if (father && father.webObj) {
 				father.webObj.appendChild(div);
 			}
@@ -1923,14 +2048,15 @@ JAXHudObj.prototype=__Proto;
 		if(cssObj.faces){
 			cssObj.jaxObjHash=1;
 		}
+		if(cssObj.jaxId){
+			this["#self"]=this;
+			//添加这个Hud
+			jaxEnv.addHashObj("#"+cssObj.jaxId, this);
+		}
 		//确定StateObj:
 		var stateObj=cssObj.hudState;
 		if(stateObj){
 			ownerState=father?father.stateObj:(owner?owner.stateObj:null);
-			if(cssObj.jaxId){
-				//添加这个Hud
-				jaxEnv.addHashObj("#"+cssObj.jaxId, this);
-			}
 			if(!stateObj.isJAXHudState) {
 				stateObj = jaxHudState(this.jaxEnv, stateObj);
 			}
@@ -2022,8 +2148,13 @@ JAXHudObj.prototype=__Proto;
 	__Proto.OnMouseClick=function(e)
 	{
 		if(this.isGenEvent){
-			e.stopPropagation();
-			this.OnClickFunc_.call(this);
+			if(e.srcElement===this.webObj && this.OnClickFunc_) {
+				e.stopPropagation();
+				this.OnClickFunc_.call(this, e);
+			}else if(this.OnTreeClickFunc_){
+				e.stopPropagation();
+				this.OnTreeClickFunc_.call(this, e);
+			}
 		}
 	};
 

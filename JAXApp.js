@@ -1,13 +1,17 @@
-import { JAXEnv } from './JAXEnv.js';
+import {JAXEnv} from './JAXEnv.js';
 import {JAXHudLayer} from './JAXHudLayer.js'
 import {jaxHudState} from "./JAXHudState.js";
+import {JAXDataObj} from "./JAXDataObj.js";
 
 var JAXApp,__Proto;
 
 JAXApp=function(jaxEnv,appDiv){
 	if(!jaxEnv)
 		return;
+	JAXDataObj.call(this,jaxEnv,null,null);
 
+	this.appPath=document.location.pathname;
+	this.appDir=JAXEnv.getPathDir(this.appPath);
 	this.jaxClassFunc=JAXApp;
 
 	this.jaxEnv=jaxEnv;
@@ -76,6 +80,10 @@ __Proto.OnResize=function(w,h){
 	this.h=h;
 	style.width=""+w+"px";
 	style.height=""+h+"px";
+	this.w=w;
+	this.h=h;
+	this.clientW=w;
+	this.clientH=h;
 	list=this.layers_;
 	n=list.length;
 	for(i=0;i<n;i++){
@@ -107,6 +115,45 @@ __Proto.postApplyCSS = function (cssObj) {
 	}
 
 };
+
+
+//***************************************************************************
+//有关启动App的函数:
+//***************************************************************************
+{
+	__Proto=JAXEnv.prototype;
+	//---------------------------------------------------------------------------
+	//创建App
+	__Proto.createApp=function()
+	{
+		if(this.app){
+			throw "Error: JAXEnv already has a App!";
+		}
+		this.app=new JAXApp(this,this.jaxDiv);
+		return this.app;
+	};
+
+	//---------------------------------------------------------------------------
+	//初始化App
+	__Proto.initApp=function(appDef)
+	{
+		if(!this.app){
+			throw "Error: JAXEnv has no App!";
+		}
+		this.app.startByDef(appDef);
+		return this.app;
+	};
+
+	//---------------------------------------------------------------------------
+	//创建且初始化App
+	__Proto.startApp=function(appDef)
+	{
+		this.app=new JAXApp(this,this.jaxDiv);
+		this.app.startByDef(appDef);
+		return this.app;
+	};
+}
+
 
 export {JAXApp};
 

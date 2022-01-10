@@ -1,17 +1,17 @@
 var JAXDataObj, __Proto;
-var applyDataObj;
+let callAfter;
 
 //***************************************************************************
 //面向dataObj的方法:
 //***************************************************************************
 {
-	//---------------------------------------------------------------------------
+	//-----------------------------------------------------------------------
 	//初始化函数:
 	JAXDataObj=function(jaxEnv,owner,ownerKey){
 		var self;
-		var notifyHubIn,notifyHubOn,notifyOnAll,notifyToMap;//即时/延时的派送通知函数
+		var notifyHubOn,notifyOnAll,notifyToMap;//即时/延时的派送通知函数
 
-		if(!jaxEnv){
+		if(jaxEnv===undefined){
 			return;
 		}
 		self=this;//新建一个对象
@@ -21,9 +21,9 @@ var applyDataObj;
 		self.owner=owner;
 		self.ownerKey=ownerKey;
 
-		//*************************************************************************
+		//*******************************************************************
 		//使当前self对象拥有可以追踪的变量相关:
-		//*************************************************************************
+		//*******************************************************************
 		{
 			var m_NotifyPaused;
 			var m_viewHubIn = {};
@@ -34,15 +34,16 @@ var applyDataObj;
 			var m_msgValHash={};
 			var removeValBindOfView;
 
-			//-------------------------------------------------------------------------
+			//---------------------------------------------------------------
 			//转换一个成员为被监测的:@[""+obj.name,"Data"]
 			self.upgradeVal = function (name, msg) {
 				var oldMsg, curVal, desc, oldGet, oldSet,msgList;
 				if (!(name in self)) {
 					return;
 				}
-				if (!msg)
+				if (!msg) {
 					msg = "*";//默认的分散消息通道:
+				}
 				if(Array.isArray(msg)){
 					msgList=msg;
 				}
@@ -104,18 +105,18 @@ var applyDataObj;
 				}
 			};
 
-			//-------------------------------------------------------------------------
+			//---------------------------------------------------------------
 			//得到一个变量对应的消息:
 			self.getValMsg = function (name) {
 				return m_msgValHash[name];
 			};
 
-			//-------------------------------------------------------------------------
+			//---------------------------------------------------------------
 			//添加延时数据观察回调，返回指定变量对应的msg
-			self.bindValNotify = function (valName,func,view) {
+			self.onNotify=self.bindValNotify = function (valName,func,view,once=0) {
 				var map, set, msg;
 				if (!func) {
-					DBOut("view dosen't have hub notify function!!");
+					console.error("hub notify function!!");
 					return;
 				}
 				if (!(valName in self)) {
@@ -135,11 +136,26 @@ var applyDataObj;
 					set = new Set();
 					map.set(view, set);
 				}
-				set.add(func);
+				if(!once) {
+					set.add(func);
+				}else{
+					let onceFunc;
+					onceFunc=function(...args){
+						func(...args);
+						self.off(msg,onceFunc,view);
+					};
+					set.add(onceFunc);
+				}
 				return msg;
 			};
 
-			//-------------------------------------------------------------------------
+			//---------------------------------------------------------------
+			//添加单次延时数据观察回调
+			self.onceNotify=function(msgName,func,view){
+				self.onNotify(msgName,func,view,1);
+			};
+
+			//---------------------------------------------------------------
 			//删除view对应的所有观察回调
 			self.removeValBindOfView = removeValBindOfView = function (msgName, view) {
 				var list, i, n, stub;
@@ -164,17 +180,19 @@ var applyDataObj;
 				}
 			};
 
-			//-------------------------------------------------------------------------
+			//---------------------------------------------------------------
 			//删除指定的链接
-			self.removeValNotify = function (msgName, func, view) {
-				var list, map, set, stub;
+			self.offNotify=self.removeValNotify = function (msgName, func, view) {
+				var list, map, set, i, msg;
 				if (!msgName) {
 					list = m_viewHubIn;
 					for (i in list) {
-						self.removeValNotify(i, view, func);
+						msg=i;
+						self.removeValNotify(msg, view, func);
 					}
 					list = m_viewHubOn;
 					for (i in list) {
+						msg=i;
 						self.removeValNotify(i, view, func);
 					}
 					return;
@@ -195,13 +213,13 @@ var applyDataObj;
 				}
 			};
 
-			//-------------------------------------------------------------------------
+			//---------------------------------------------------------------
 			//通知指定消息队列里的函数:
 			notifyToMap = function (map) {
 				var views, view, set, func;
 				views = map.keys();
 				for (view of views) {
-					if (view.allowValNotify) {
+					if (!view || view.allowValNotify!==false) {
 						set = map.get(view);
 						for (func of set) {
 							func();
@@ -210,9 +228,9 @@ var applyDataObj;
 				}
 			};
 
-			//-------------------------------------------------------------------------
+			//---------------------------------------------------------------
 			//延时通知函数:
-			self.notifyValMsgOn = notifyHubOn = function (msg) {
+			self.emitNotify=self.notifyValMsgOn = notifyHubOn = function (msg) {
 				if (m_NotifyOnMsgHash[msg])
 					return;
 				m_NotifyOnMsgHash[msg] = 1;
@@ -220,10 +238,10 @@ var applyDataObj;
 				if (m_isInEnvList)
 					return;
 				m_isInEnvList = 1;
-				jaxEnv.callAfter(notifyOnAll);
+				callAfter(notifyOnAll);
 			};
 
-			//-------------------------------------------------------------------------
+			//---------------------------------------------------------------
 			//发送延时通知函数:
 			notifyOnAll = function () {
 				var map, msg, list, loop;
@@ -246,7 +264,7 @@ var applyDataObj;
 				m_isInEnvList = 0;
 			};
 
-			//-------------------------------------------------------------------------
+			//---------------------------------------------------------------
 			//定义暂停属性通知机制:
 			Object.defineProperty(self,"pauseValNotify",{
 				get:function(){
@@ -258,6 +276,13 @@ var applyDataObj;
 					return v;
 				}
 			})
+
+			//---------------------------------------------------------------
+			//得到当前使用的全部的消息
+			self.eventNames=function(){
+				//TODO: Code this:
+				return [];
+			}
 		}
 		return self;
 	};
@@ -268,8 +293,9 @@ var applyDataObj;
 //***************************************************************************
 {
 	var DataTypeHash = {};
+
 	//-----------------------------------------------------------------------
-	//注册Hud控件类型
+	//注册DataObj类型
 	JAXDataObj.regHudByType = function (typeName, func) {
 		DataTypeHash[typeName] = func;
 	};
@@ -283,6 +309,29 @@ var applyDataObj;
 		return func(jaxEnv);
 	};
 }
+//***************************************************************************
+//CallAfter:
+//***************************************************************************
+{
+	let callAFList=[];
+	let callInList=false;
 
-
+	//-----------------------------------------------------------------------
+	//Call a function later, make sure it's asynced:
+	callAfter=JAXDataObj.callAfter=function(func)
+	{
+		callAFList.push(func);
+		if(!callInList){
+			callInList=true;
+			setTimeout(()=>{
+				let list=callAFList;
+				callInList=0;
+				callAFList=[];
+				for(let func of list){
+					func();
+				}
+			},0);
+		}
+	};
+}
 export {JAXDataObj};

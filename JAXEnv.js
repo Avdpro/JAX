@@ -1,5 +1,3 @@
-import {JAXApp} from "./JAXApp.js";
-import {JAXDisk} from "./JAXDisk.js"
 import {JAXDataObj} from "./JAXDataObj.js";
 
 var JAXEnv,__Proto,$JXV,JAXStateProxy,$V;
@@ -72,11 +70,25 @@ JAXEnv=function(jaxDiv)
 	document.addEventListener("keyup",this.OnKeyUp.bind(this),true);
 
 	//响应窗口大小变化:
+	let sizeTimer=null;
 	window.onresize=function(){
+		let w,h;
 		console.log("Window width: "+window.innerWidth);
 		console.log("Window height: "+window.innerHeight);
 		//通知App:
-		self.app.OnResize(window.innerWidth,window.innerHeight);
+		w=window.innerWidth;
+		h=window.innerHeight;
+		jaxDiv.style.width=w+"px";
+		jaxDiv.style.height=h+"px";
+		if(sizeTimer){
+			clearTimeout(sizeTimer);
+		}
+		sizeTimer=setTimeout(()=>{
+			sizeTimer=null;
+			if(self.app){
+				self.app.OnResize(w,h);
+			}
+		},1000);
 	};
 
 	//测量文本宽度用div，这个需要改进:
@@ -98,30 +110,6 @@ JAXEnv=function(jaxDiv)
 
 	//用来触发文件下载的辅助按钮
 	this.webFileDownload=document.getElementById("JAXFileDownload");
-	return;
-	//测试JAXDisk的代码:
-	JAXDisk.init().then(()=>{
-		console.log("JAXDisk inited!");
-		console.log("JAXDisks: "+JAXDisk.getDisks());
-		JAXDisk.newDisk("TestDrive").then((disk)=>{
-			console.log("Will save file!");
-			disk.saveFile("hello.js","console.log('Hello file');");
-			disk.newDir("lib").then(()=>{
-				disk.saveFile("lib/hello2.js","console.log('Hello file');");
-			});
-			disk.newDir("assets/images");
-			disk.getEntries("/").then(list=>{
-				let stub;
-				if(!list){
-					console.log("Path is not exist");
-					return;
-				}
-				for(stub of list){
-					console.log(stub.name+" is "+(stub.dir?"dir":"file"));
-				}
-			})
-		});
-	});
 };
 
 __Proto=JAXEnv.prototype={};
@@ -197,6 +185,9 @@ __Proto=JAXEnv.prototype={};
 	//计算相对路径:
 	JAXEnv.divFilePath=function(filePath,basePath){
 		var fileDirs,baseDirs,i,n;
+		if(!basePath){
+			return filePath;
+		}
 		fileDirs=filePath.split("/");
 		baseDirs=basePath.split("/");
 		n=Math.min(fileDirs.length,baseDirs.length);
@@ -219,19 +210,64 @@ __Proto=JAXEnv.prototype={};
 	//-----------------------------------------------------------------------
 	//合并相对路径:
 	JAXEnv.genFilePath=function(basePath,filePath){
-		var fileDirs,baseDirs,i,n;
+		let pts,diskPrefix,fileDirs,baseDirs,i,n,diskPath;
+		//找磁盘
+		pts=basePath.split(":");
+		if(pts.length===2){
+			diskPrefix=pts[0]+":";
+			basePath=pts[1];
+		}else{
+			diskPrefix="";
+		}
+		if(filePath.startsWith("/")){
+			//绝对路径，看看要不要增加磁盘
+			return diskPrefix+filePath;
+		}
+		let pos1=filePath.indexOf(":");
+		let pos2=filePath.indexOf("/");
+		if(pos1>0){
+			if(pos2<0 || pos2>pos1){
+				return filePath;//这个Path是包含磁盘路径的
+			}
+		}
+		//移除"./"
+		while(filePath.startsWith("./")){
+			filePath=filePath.substring(2);
+		}
 		fileDirs=filePath.split("/");
 		baseDirs=basePath.split("/");
 		n=fileDirs.length;
 		for(i=0;i<n;i++){
 			if(fileDirs[i]===".."){
+				fileDirs.shift();
 				baseDirs.pop();
+				i--;n--;
 			}else{
 				break;
 			}
 		}
 		fileDirs=baseDirs.concat(fileDirs);
-		return fileDirs.join("/");
+		fileDirs=fileDirs.filter((item,idx)=>(idx===0||(!!item && item!==".")));
+		return diskPrefix+fileDirs.join("/");
+	};
+
+	//-----------------------------------------------------------------------
+	//把磁盘路径转化为URL:
+	JAXEnv.diskPath2URL=function(diskPath){
+		let pos,diskName,filePath;
+		if(diskPath.startsWith("/")){
+			return "/jaxweb/disks"+diskPath;
+		}
+		pos=diskPath.indexOf(":");
+		if(pos<0){
+			throw "Can't find disk name from: "+diskPath;
+		}
+		diskName=diskPath.substring(0,pos);
+		filePath=diskPath.substring(pos+1);
+		if(filePath.startsWith("/")){
+			filePath=filePath.substring(1);
+		}
+		return "/jaxweb/disks/"+diskName+"/"+filePath;
 	};
 }
 
@@ -415,42 +451,6 @@ __Proto=JAXEnv.prototype={};
 }
 
 //***************************************************************************
-//有关启动App的函数:
-//***************************************************************************
-{
-	//---------------------------------------------------------------------------
-	//创建App
-	__Proto.createApp=function()
-	{
-		if(this.app){
-			throw "Error: JAXEnv already has a App!";
-		}
-		this.app=new JAXApp(this,this.jaxDiv);
-		return this.app;
-	};
-
-	//---------------------------------------------------------------------------
-	//初始化App
-	__Proto.initApp=function(appDef)
-	{
-		if(!this.app){
-			throw "Error: JAXEnv has no App!";
-		}
-		this.app.startByDef(appDef);
-		return this.app;
-	};
-
-	//---------------------------------------------------------------------------
-	//创建且初始化App
-	__Proto.startApp=function(appDef)
-	{
-		this.app=new JAXApp(this,this.jaxDiv);
-		this.app.startByDef(appDef);
-		return this.app;
-	};
-}
-
-//***************************************************************************
 //有关Update的函数:
 //***************************************************************************
 {
@@ -491,13 +491,8 @@ __Proto=JAXEnv.prototype={};
 		for(hud of list){
 			hud._update();
 		}
-
-		//回调函数:
-		list=callAFList;
-		callAFList=[];
-		for(func of list){
-			func();
-		}
+	
+		//JAXDataObj.update();
 
 		if(!willUpdate){
 			updateRequestRef=window.setTimeout(this.thisUpdateProc,50);
@@ -509,12 +504,8 @@ __Proto=JAXEnv.prototype={};
 //有关AF回调函数的函数:
 //***************************************************************************
 {
-	__Proto.callAfter=function(func)
-	{
-		callAFList.push(func);
-	};
+	__Proto.callAfter=JAXDataObj.callAfter;
 }
-
 
 //***************************************************************************
 //有关ObjHasher/View/HudState的函数
@@ -743,6 +734,8 @@ __Proto=JAXEnv.prototype={};
 			dx=e.x-drag.ox;
 			dy=e.y-drag.oy;
 			drag.OnDrag(e,dx,dy);
+			e.stopPropagation();
+			e.preventDefault();
 		}
 	};
 
@@ -806,21 +799,20 @@ __Proto=JAXEnv.prototype={};
 	//-----------------------------------------------------------------------
 	//键盘按下消息
 	__Proto.OnKeyDown=function(e){
-		let list,i,n,func;
-		if(e.target===htmlBody) {
-			list=OnKeyDowns;
-			n=list.length;
-			for(i=0;i<n;i++){
-				func=list[i];
-				if(func._inJAXKeyDown){
-					if(func(e)){
-						e.preventDefault();
-						e.stopPropagation();
-					}
-				}else{
-					list.splice(i,1);
-					i--;n--;
+		let list,i,n,func,appMajor;
+		appMajor=e.target===htmlBody;
+		list=OnKeyDowns;
+		n=list.length;
+		for(i=0;i<n;i++){
+			func=list[i];
+			if(func._inJAXKeyDown){
+				if(func(e,appMajor)){
+					e.preventDefault();
+					e.stopPropagation();
 				}
+			}else{
+				list.splice(i,1);
+				i--;n--;
 			}
 		}
 	};
@@ -828,21 +820,20 @@ __Proto=JAXEnv.prototype={};
 	//-----------------------------------------------------------------------
 	//键盘抬起消息
 	__Proto.OnKeyUp=function(e){
-		let list,i,n,func;
-		if(e.target===htmlBody) {
-			list=OnKeyUps;
-			n=list.length;
-			for(i=0;i<n;i++){
-				func=list[i];
-				if(func._inJAXKeyUp){
-					if(func(e)){
-						e.preventDefault();
-						e.stopPropagation();
-					}
-				}else{
-					list.splice(i,1);
-					i--;n--;
+		let list,i,n,func,appMajor;
+		appMajor=e.target===htmlBody;
+		list=OnKeyUps;
+		n=list.length;
+		for(i=0;i<n;i++){
+			func=list[i];
+			if(func._inJAXKeyUp){
+				if(func(e,appMajor)){
+					e.preventDefault();
+					e.stopPropagation();
 				}
+			}else{
+				list.splice(i,1);
+				i--;n--;
 			}
 		}
 	};
@@ -852,7 +843,142 @@ __Proto=JAXEnv.prototype={};
 //系统对话框机制，可以替换:
 //***************************************************************************
 {
+}
 
+//***************************************************************************
+//有关类型转换的函数:
+//***************************************************************************
+{
+	//-----------------------------------------------------------------------
+	//判断字符串是不是CSS字符串:
+	JAXEnv.isCSSColorString=function(text){
+		var n;
+		if(!text.startsWith("#")){
+			return 0;
+		}
+		text=text.substring(1);
+		n=text.length;
+		if((n===3)||(n===6)||(n===8)){
+			return parseInt(text,16)>=0?1:0;
+		}
+		return 0;
+	};
+
+	//-----------------------------------------------------------------------
+	//RGBA值转换为CSS字符串:
+	JAXEnv.encodeColor=function(color,alpha=1){
+		var r,g,b,a;
+		r=color[0];
+		g=color[1];
+		b=color[2];
+		a=color[3];
+
+		r=r<0?0:(r>255?255:r);
+		g=g<0?0:(g>255?255:g);
+		b=b<0?0:(b>255?255:b);
+		a=a<0?0:(a>1?1:a);
+		a*=255;
+		r=r<10?("0"+Math.floor(r).toString(16)):(""+Math.floor(r).toString(16));
+		g=g<10?("0"+Math.floor(g).toString(16)):(""+Math.floor(g).toString(16));
+		b=b<10?("0"+Math.floor(b).toString(16)):(""+Math.floor(b).toString(16));
+		a=a<10?("0"+Math.floor(a).toString(16)):(""+Math.floor(a).toString(16));
+		return alpha?("#"+r+g+b+a):("#"+r+g+b);
+	};
+
+	//-----------------------------------------------------------------------
+	//颜色字符串转为RBGA值:
+	JAXEnv.parseColor=function(text){
+		var len,r,g,b,a;
+		len=text.length;
+		if(text.startsWith("#")){
+			switch(len){
+				case 4://#RGB
+					r=text.substring(1,2);
+					g=text.substring(2,3);
+					b=text.substring(3,4);
+
+					r=parseInt(r,16);
+					r=isNaN(r)?0:(r*16+15);
+
+					g=parseInt(g,16);
+					g=isNaN(g)?0:(g*16+15);
+
+					b=parseInt(b,16);
+					b=isNaN(b)?0:(b*16+15);
+
+					a=1;
+					break;
+				case 7://#RRGGBB
+					r=text.substring(1,3);
+					g=text.substring(3,5);
+					b=text.substring(5,7);
+
+					r=parseInt(r,16);
+					r=isNaN(r)?0:(r);
+
+					g=parseInt(g,16);
+					g=isNaN(g)?0:(g);
+
+					b=parseInt(b,16);
+					b=isNaN(b)?0:(b);
+
+					a=1;
+					break;
+				case 9://#RRGGBBAA
+					r=text.substring(1,3);
+					g=text.substring(3,5);
+					b=text.substring(5,7);
+					a=text.substring(7,9);
+
+					r=parseInt(r,16);
+					r=isNaN(r)?0:(r);
+
+					g=parseInt(g,16);
+					g=isNaN(g)?0:(g);
+
+					b=parseInt(b,16);
+					b=isNaN(b)?0:(b);
+
+					a=parseInt(a,16);
+					a=isNaN(a)?1:(a/255.0);
+					break;
+				default:
+					return [0,0,0,1];
+			}
+			return [r,g,b,a];
+		}
+		//TODO: 增加其它颜色模式分析:
+		return [0,0,0,1];
+	};
+
+	//-----------------------------------------------------------------------
+	//数字转换为颜色数组:
+	JAXEnv.num2Color=function(num){
+		let r,g,b,a;
+		num=Math.floor(num);
+		a=(num&0xFF000000)>>24;
+		r=(num&0xFF0000)>>16;
+		g=(num&0xFF00)>>8;
+		b=(num&0xFF);
+		a=a/255;
+		return [r,g,b,a];
+	};
+
+	//-----------------------------------------------------------------------
+	//颜色数组转换为数字:
+	JAXEnv.color2Num=function(color){
+		let r,g,b,a;
+		r=color[0];
+		g=color[1];
+		b=color[2];
+		a=color[3];
+		r=Math.floor(r<0?0:(r>255?255:r));
+		g=Math.floor(g<0?0:(g>255?255:g));
+		b=Math.floor(b<0?0:(b>255?255:b));
+		a*=255;
+		a=Math.floor(a<0?0:(a>255?255:a));
+		return (a<<24)|(r<<16)|(g<<8)|b;
+	};
 }
 
 //***************************************************************************
@@ -895,11 +1021,8 @@ __Proto=JAXEnv.prototype={};
 			if(Array.isArray(traces)){
 				let i,n,list,stub;
 				list=traces;
-				if(typeof(traces==="string")){
-					//合格了:
-					this.traces=traces;
-				}else if(list.length===2 && typeof(list[1])==="string"){
-					//合格了:
+				if(list.length===2 && typeof(list[1])==="string"){
+					//This is oK:
 					this.traces=traces=[traces];
 				}else {
 					for (i = 0; i < n; i++) {
@@ -935,6 +1058,8 @@ __Proto=JAXEnv.prototype={};
 					traces=null;
 				}
 			}
+		}else{
+			this.traces=traces===0?0:null;
 		}
 
 		//-------------------------------------------------------------------
@@ -947,13 +1072,11 @@ __Proto=JAXEnv.prototype={};
 					if(defaultTgt instanceof JAXStateProxy){
 						defaultTgt.addUpdateFunc(func?func:this.func(ownerObj,valName));
 						traced=1;
-					}/*else{
-						defaultTgt.bindValNotify("*",func?func:this.func(ownerObj,valName),view);
-					}*/
+					}
 				}
 			}
 			if(typeof(traces)==="string"){
-				defaultTgt.bindValNotify(traces,func?func:this.func(ownerObj,valName),view);
+				defaultTgt.onNotify(traces,func?func:this.func(ownerObj,valName),view);
 				traced=1;
 			}else if(Array.isArray(traces)){
 				let i,n,stub,tgt,msg;
@@ -963,7 +1086,7 @@ __Proto=JAXEnv.prototype={};
 					stub[0]=tgt=stub[0]||defaultTgt;
 					stub[1]=msg=stub[1]||"*";
 					if(tgt) {
-						tgt.bindValNotify(msg, func ? func : this.func(ownerObj, valName), view);
+						tgt.onNotify(msg, func ? func : this.func(ownerObj, valName), view);
 					}
 				}
 				traced=1;
@@ -991,7 +1114,7 @@ __Proto=JAXEnv.prototype={};
 						tgt=stub[0];
 						msg=stub[1];
 						if(tgt.removeValNotify){
-							tgt.removeValNotify(msg,func,traceView);
+							tgt.offNotify(msg,func,traceView);
 						}
 					}
 				}

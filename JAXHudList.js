@@ -1,4 +1,4 @@
-import {$JXV} from "./JAXEnv.js";
+import {JAXEnv,$JXV,$V} from "./JAXEnv.js";
 import {JAXHudObj} from "./JAXHudObj.js";
 import {jaxHudState} from "./JAXHudState.js";
 
@@ -90,11 +90,12 @@ var JAXHudListNode;
 				this.curColumn=i;
 				hud = JAXHudObj.createHudByType(css.type, this.jaxEnv, null, css, this);
 				this.columnHuds[i]=hud;
-				if(hud.webObj){
+				if(hud && hud.webObj){
 					div.appendChild(hud.webObj);
 				}
 			}
 		}
+		this.curColumn=0;
 	};
 
 	JAXHudListNode.prototype = {};
@@ -193,6 +194,14 @@ JAXHudList=function(jaxEnv)
 
 	_attrChanged=0;
 
+	this.OnHotNodeChange=null;
+	this.OnAddNode=null;
+	this.OnInsertNode=null;
+	this.OnSelNodeChange=null;
+	this.OnFreeNode=null;
+	this.OnMoveNode=null;
+
+
 	Object.defineProperty(this,'attrChanged',{
 		get:function(){return _attrChanged;},
 		set:function(v){_attrChanged=1;},
@@ -232,13 +241,15 @@ JAXHudList=function(jaxEnv)
 			set: function (v) {
 				if(v instanceof $JXV){
 					let oldV;
-					oldV=valJXVMap['rowH'];
-					if(oldV){
+					oldV = valJXVMap.get('rowH');
+					if (oldV) {
 						oldV.untrace();
 						valJXVMap.delete('rowH');
 					}
-					v.trace(this.$stateObj_,this,'rowH',hudView);
-					valJXVMap.set('rowH',v);
+					if(v.traces!==0) {
+						v.trace(this.$stateObj_, this, 'rowH', hudView);
+						valJXVMap.set('rowH', v);
+					}
 					v=v.val;
 				}
 				if (v !== rowH) {
@@ -259,13 +270,15 @@ JAXHudList=function(jaxEnv)
 			set: function (v) {
 				if(v instanceof $JXV){
 					let oldV;
-					oldV=valJXVMap['headSpace'];
-					if(oldV){
+					oldV = valJXVMap.get('headSpace');
+					if (oldV) {
 						oldV.untrace();
 						valJXVMap.delete('headSpace');
 					}
-					v.trace(this.$stateObj_,this,'headSpace',hudView);
-					valJXVMap.set('headSpace',v);
+					if(v.traces!==0) {
+						v.trace(this.$stateObj_, this, 'headSpace', hudView);
+						valJXVMap.set('headSpace', v);
+					}
 					v=v.val;
 				}
 				if (v !== headSpace) {
@@ -286,19 +299,49 @@ JAXHudList=function(jaxEnv)
 			set: function (v) {
 				if(v instanceof $JXV){
 					let oldV;
-					oldV=valJXVMap['endSpace'];
-					if(oldV){
+					oldV = valJXVMap.get('endSpace');
+					if (oldV) {
 						oldV.untrace();
 						valJXVMap.delete('endSpace');
 					}
-					v.trace(this.$stateObj_,this,'endSpace',hudView);
-					valJXVMap.set('endSpace',v);
+					if(v.traces!==0) {
+						v.trace(this.$stateObj_, this, 'endSpace', hudView);
+						valJXVMap.set('endSpace', v);
+					}
 					v=v.val;
 				}
 				if (v!==endSpace) {
 					endSpace=v;
 					_attrChanged = 1;
 					signUpdate();
+				}
+			},
+			enumerable: true
+		});
+
+		//---------------------------------------------------------------
+		//允许多重选择:
+		Object.defineProperty(this, 'multiSelect', {
+			get: function () {
+				return multi;
+			},
+			set: function (v) {
+				if(v instanceof $JXV){
+					let oldV;
+					oldV = valJXVMap.get('intend');
+					if (oldV) {
+						oldV.untrace();
+						valJXVMap.delete('intend');
+					}
+					if(v.traces!==0) {
+						v.trace(this.$stateObj_, this, 'intend', hudView);
+						valJXVMap.set('intend', v);
+					}
+					v=v.val;
+				}
+				if(v!==multi){
+					multi=v;
+					this.clearSelects();
 				}
 			},
 			enumerable: true
@@ -381,7 +424,9 @@ JAXHudList=function(jaxEnv)
 		this.clear=this.removeAllNodes=function()
 		{
 			let list,i,n,node;
-			hotNode=null;
+			if(hotNode){
+				self.setHotNode(null);
+			}
 			selNodes.clear();
 			list=nodeList;
 			n=list.length;
@@ -403,6 +448,9 @@ JAXHudList=function(jaxEnv)
 			//添加根节点
 			node = new JAXHudListNode(this,obj,null);
 			nodeList.push(node);
+			if (self.OnAddNode) {
+				self.OnAddNode(obj,node);
+			}
 			return node;
 		};
 
@@ -420,6 +468,9 @@ JAXHudList=function(jaxEnv)
 				obj=list[i];
 				node = new JAXHudListNode(this,obj,null);
 				nodeList.push(node);
+				if (self.OnAddNode) {
+					self.OnAddNode(obj,node);
+				}
 			}
 		};
 
@@ -437,6 +488,9 @@ JAXHudList=function(jaxEnv)
 			}
 			node = new JAXHudListNode(this,obj,beforeNode);
 			nodeList.splice(idx,0,node);
+			if (self.OnInsertNode) {
+				self.OnInsertNode(idx,obj,node);
+			}
 			return node;
 		};
 
@@ -457,6 +511,9 @@ JAXHudList=function(jaxEnv)
 				obj=list[i];
 				node = new JAXHudListNode(this, obj, beforeNode);
 				nodeList.splice(idx, 0, node);
+				if (self.OnInsertNode) {
+					self.OnInsertNode(idx,obj,node);
+				}
 				idx++;
 			}
 		};
@@ -471,11 +528,22 @@ JAXHudList=function(jaxEnv)
 			if(idx<0)
 				return;
 			if(node===hotNode){
-				hotNode=null;
+				self.setHotNode(null);
 			}
 			selNodes.delete(nodeNode);
 			nodeList.splice(idx,1);
+			if(self.OnFreeNode){
+				self.OnFreeNode(node);
+			}
 			node.freeNode();
+
+		};
+
+		//---------------------------------------------------------------
+		//得到节点的序号:
+		this.indexOfNode=function(node)
+		{
+			return nodeList.indexOf(node);
 		};
 
 		//---------------------------------------------------------------
@@ -500,7 +568,7 @@ JAXHudList=function(jaxEnv)
 
 		//---------------------------------------------------------------
 		//设置当前高亮节点:
-		this.setHotNode=function(nodeNode)
+		this.setHotNode=function(nodeNode,addSel=0)
 		{
 			var node,hud;
 			node=nodeNode;
@@ -517,7 +585,7 @@ JAXHudList=function(jaxEnv)
 			}
 			hotNode=node;
 			if(node) {
-				if (multi) {
+				if (multi && addSel) {
 					selNodes.add(node);
 				}else{
 					this.clearSelects();
@@ -526,6 +594,13 @@ JAXHudList=function(jaxEnv)
 				for (hud of hotNode.columnHuds) {
 					hud.face = "hot";
 				}
+			}else{
+				if (!multi || !addSel) {
+					this.clearSelects();
+				}
+			}
+			if (this.OnHotNodeChange) {
+				this.OnHotNodeChange(hotNode);
 			}
 		};
 
@@ -543,6 +618,9 @@ JAXHudList=function(jaxEnv)
 			if(hotNode){
 				hotNode.face="hot";
 			}
+			if(self.OnSelNodeChange){
+				self.OnSelNodeChange();
+			}
 		};
 
 		//---------------------------------------------------------------
@@ -553,7 +631,10 @@ JAXHudList=function(jaxEnv)
 			selNodes.add(nodeNode);
 			if(nodeNode!==hotNode){
 				for(hud of nodeNode.columnHuds){
-					hud.face="select";
+					hud.face="selected";
+				}
+				if(self.OnSelNodeChange){
+					self.OnSelNodeChange();
 				}
 			}
 		};
@@ -568,8 +649,13 @@ JAXHudList=function(jaxEnv)
 				for(hud of nodeNode.columnHuds){
 					hud.face="normal";
 				}
+				if(self.OnSelNodeChange){
+					self.OnSelNodeChange();
+				}
 			}
 		};
+
+		//TODO: 添加移动Node的方法:
 
 		//---------------------------------------------------------------
 		//找到一个节点
@@ -668,7 +754,9 @@ JAXHudList.prototype=__Proto;
 {
 	//CSS属性列表
 	JAXHudList.jaxPptSet=new Set(Array.from(JAXHudObj.jaxPptSet).concat([
-		'rowH','headSpace','endSpace','nodeCSS','columnCSS'
+		'rowH','headSpace','endSpace','nodeCSS','columnCSS',
+		'OnHotNodeChange','OnAddNode','OnInsertNode','OnSelNodeChange',
+		'OnFreeNode','OnMoveNode','multiSelect'
 	]));
 
 	//---------------------------------------------------------------------------
@@ -697,7 +785,7 @@ JAXHudList.prototype=__Proto;
 		this.removeAllChildren();
 		if(!this.webObj) {
 			div = this.webObj = document.createElement('div');
-			div.style.position = "absolute";
+			div.style.position = cssObj.position||"absolute";
 			father = this.father;
 			if (father && father.webObj) {
 				father.webObj.appendChild(div);
@@ -757,14 +845,15 @@ JAXHudList.prototype=__Proto;
 		if(cssObj.faces){
 			cssObj.jaxObjHash=1;
 		}
+		if(cssObj.jaxId){
+			this["#self"]=this;
+			//添加这个Hud
+			jaxEnv.addHashObj("#"+cssObj.jaxId, this);
+		}
 		//确定StateObj:
 		var stateObj=cssObj.hudState;
 		if(stateObj){
 			ownerState=father?father.stateObj:(owner?owner.stateObj:null);
-			if(cssObj.jaxId){
-				//添加这个Hud
-				jaxEnv.addHashObj("#"+cssObj.jaxId, this);
-			}
 			if(!stateObj.isJAXHudState) {
 				stateObj = jaxHudState(this.jaxEnv, stateObj);
 			}

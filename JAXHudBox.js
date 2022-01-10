@@ -1,4 +1,4 @@
-import {$JXV} from "./JAXEnv.js";
+import {JAXEnv,$JXV} from "./JAXEnv.js";
 import {JAXHudObj} from "./JAXHudObj.js";
 import {jaxHudState} from "./JAXHudState.js";
 
@@ -9,7 +9,7 @@ __Proto=new JAXHudObj();
 JAXHudBox=function(jaxEnv)
 {
 	var colorBox,colorBorder;
-	var border,borderStyle,coner;
+	var border,borderStyle,coner,coners;
 	var shadowObj,pxShadow;
 	var _attrChanged;
 	var signUpdate;
@@ -30,6 +30,7 @@ JAXHudBox=function(jaxEnv)
 	border=0;
 	borderStyle=0;//0:Solid, 1:dashed, 2:dotted, 3:outset...
 	coner=0;
+	coners=null;
 	_attrChanged=0;
 	shadowObj={use:0,x:2,y:2,blur:3,spread:0,color:[0,0,0,0.5]};
 	gradient=null;
@@ -53,13 +54,15 @@ JAXHudBox=function(jaxEnv)
 			set: function (v) {
 				if(v instanceof $JXV){
 					let oldV;
-					oldV=valJXVMap['color'];
-					if(oldV){
+					oldV = valJXVMap.get('color');
+					if (oldV) {
 						oldV.untrace();
 						valJXVMap.delete('color');
 					}
-					v.trace(this.stateObj,this,'color',hudView);
-					valJXVMap.set('color',v);
+					if(v.traces!==0) {
+						v.trace(this.stateObj, this, 'color', hudView);
+						valJXVMap.set('color', v);
+					}
 					v=v.val;
 				}
 				if (Array.isArray(v)) {
@@ -68,7 +71,7 @@ JAXHudBox=function(jaxEnv)
 					colorBox[2] = v[2];
 					colorBox[3] = v[3];
 				} else if (typeof (v) === 'string') {
-					//TODO: 支持#RRGGBB模式:
+					[colorBox[0],colorBox[1],colorBox[2],colorBox[3]]=JAXEnv.parseColor(v);
 				} else if (typeof (v) === 'number') {
 					//TODO: 支持0xFFDDFFAA:
 				}
@@ -86,13 +89,15 @@ JAXHudBox=function(jaxEnv)
 			set: function (v) {
 				if(v instanceof $JXV){
 					let oldV;
-					oldV=valJXVMap['border'];
-					if(oldV){
+					oldV = valJXVMap.get('border');
+					if (oldV) {
 						oldV.untrace();
 						valJXVMap.delete('border');
 					}
-					v.trace(this.stateObj,this,'border',hudView);
-					valJXVMap.set('border',v);
+					if(v.traces!==0) {
+						v.trace(this.stateObj, this, 'border', hudView);
+						valJXVMap.set('border', v);
+					}
 					v=v.val;
 				}
 				if (v!==border) {
@@ -112,13 +117,15 @@ JAXHudBox=function(jaxEnv)
 			set: function (v) {
 				if(v instanceof $JXV){
 					let oldV;
-					oldV=valJXVMap['borderStyle'];
-					if(oldV){
+					oldV = valJXVMap.get('borderStyle');
+					if (oldV) {
 						oldV.untrace();
 						valJXVMap.delete('borderStyle');
 					}
-					v.trace(this.stateObj,this,'borderStyle',hudView);
-					valJXVMap.set('borderStyle',v);
+					if(v.traces!==0) {
+						v.trace(this.stateObj, this, 'borderStyle', hudView);
+						valJXVMap.set('borderStyle', v);
+					}
 					v=v.val;
 				}
 				if (v!==borderStyle) {
@@ -138,13 +145,15 @@ JAXHudBox=function(jaxEnv)
 			set: function (v) {
 				if(v instanceof $JXV){
 					let oldV;
-					oldV=valJXVMap['borderColor'];
-					if(oldV){
+					oldV = valJXVMap.get('borderColor');
+					if (oldV) {
 						oldV.untrace();
 						valJXVMap.delete('borderColor');
 					}
-					v.trace(this.stateObj,this,'borderColor',hudView);
-					valJXVMap.set('borderColor',v);
+					if(v.traces!==0) {
+						v.trace(this.stateObj, this, 'borderColor', hudView);
+						valJXVMap.set('borderColor', v);
+					}
 					v=v.val;
 				}
 				if (Array.isArray(v)) {
@@ -153,7 +162,7 @@ JAXHudBox=function(jaxEnv)
 					colorBorder[2] = v[2];
 					colorBorder[3] = v[3];
 				} else if (typeof (v) === 'string') {
-					//TODO: 支持#RRGGBB模式:
+					[colorBorder[0],colorBorder[1],colorBorder[2],colorBorder[3]]=JAXEnv.parseColor(v);
 				} else if (typeof (v) === 'number') {
 					//TODO: 支持0xAARRGGBB模式:
 				}
@@ -171,17 +180,47 @@ JAXHudBox=function(jaxEnv)
 			set: function (v) {
 				if(v instanceof $JXV){
 					let oldV;
-					oldV=valJXVMap['coner'];
-					if(oldV){
+					oldV = valJXVMap.get('coner');
+					if (oldV) {
 						oldV.untrace();
 						valJXVMap.delete('coner');
 					}
-					v.trace(this.stateObj,this,'coner',hudView);
-					valJXVMap.set('coner',v);
+					if(v.traces!==0) {
+						v.trace(this.stateObj, this, 'coner', hudView);
+						valJXVMap.set('coner', v);
+					}
 					v=v.val;
 				}
 				if (v!==coner) {
 					coner=v;
+					_attrChanged = 1;
+					signUpdate();
+				}
+			},
+			enumerable: true
+		});
+
+		//分别指定的圆角尺寸:
+		Object.defineProperty(this, 'coners', {
+			get: function () {
+				return coners;
+			},
+			set: function (v) {
+				if(v instanceof $JXV){
+					let oldV;
+					oldV = valJXVMap.get('coner');
+					if (oldV) {
+						oldV.untrace();
+						valJXVMap.delete('coner');
+					}
+					if(v.traces!==0) {
+						v.trace(this.stateObj, this, 'coner', hudView);
+						valJXVMap.set('coner', v);
+					}
+					v=v.val;
+				}
+				if (v!==coners) {
+					coners=v;
 					_attrChanged = 1;
 					signUpdate();
 				}
@@ -219,13 +258,15 @@ JAXHudBox=function(jaxEnv)
 			set:function(v){
 				if(v instanceof $JXV){
 					let oldV;
-					oldV=valJXVMap['shadow'];
-					if(oldV){
+					oldV = valJXVMap.get('shadow');
+					if (oldV) {
 						oldV.untrace();
 						valJXVMap.delete('shadow');
 					}
-					v.trace(this.stateObj,this,'shadow',hudView);
-					valJXVMap.set('shadow',v);
+					if(v.traces!==0) {
+						v.trace(this.stateObj, this, 'shadow', hudView);
+						valJXVMap.set('shadow', v);
+					}
 					v=v.val;
 				}
 				if(typeof(v)==="object"){
@@ -247,6 +288,147 @@ JAXHudBox=function(jaxEnv)
 			}
 		});
 
+		//影子X位移:
+		Object.defineProperty(this, 'shadowX', {
+			get:function(){
+				return pxShadow;
+			},
+			set:function(v){
+				if(v instanceof $JXV){
+					let oldV;
+					oldV = valJXVMap.get('shadowX');
+					if (oldV) {
+						oldV.untrace();
+						valJXVMap.delete('shadowX');
+					}
+					if(v.traces!==0) {
+						v.trace(this.stateObj, this, 'shadowX', hudView);
+						valJXVMap.set('shadowX', v);
+					}
+					v=v.val;
+				}
+				if(shadowObj.x!==v) {
+					shadowObj.x = v;
+					_attrChanged = 1;
+					signUpdate();
+				}
+			}
+		});
+
+		//影子Y位移:
+		Object.defineProperty(this, 'shadowY', {
+			get:function(){
+				return pxShadow;
+			},
+			set:function(v){
+				if(v instanceof $JXV){
+					let oldV;
+					oldV = valJXVMap.get('shadowY');
+					if (oldV) {
+						oldV.untrace();
+						valJXVMap.delete('shadowY');
+					}
+					if(v.traces!==0) {
+						v.trace(this.stateObj, this, 'shadowY', hudView);
+						valJXVMap.set('shadowY', v);
+					}
+					v=v.val;
+				}
+				if(shadowObj.y!==v) {
+					shadowObj.y = v;
+					_attrChanged = 1;
+					signUpdate();
+				}
+			}
+		});
+
+		//影子Blur模糊:
+		Object.defineProperty(this, 'shadowBlur', {
+			get:function(){
+				return pxShadow;
+			},
+			set:function(v){
+				if(v instanceof $JXV){
+					let oldV;
+					oldV = valJXVMap.get('shadowBlur');
+					if (oldV) {
+						oldV.untrace();
+						valJXVMap.delete('shadowBlur');
+					}
+					if(v.traces!==0) {
+						v.trace(this.stateObj, this, 'shadowBlur', hudView);
+						valJXVMap.set('shadowBlur', v);
+					}
+					v=v.val;
+				}
+				if(shadowObj.blur!==v) {
+					shadowObj.blur = v;
+					_attrChanged = 1;
+					signUpdate();
+				}
+			}
+		});
+
+		//影子Spread扩散:
+		Object.defineProperty(this, 'shadowSpread', {
+			get:function(){
+				return pxShadow;
+			},
+			set:function(v){
+				if(v instanceof $JXV){
+					let oldV;
+					oldV = valJXVMap.get('shadowSpread');
+					if (oldV) {
+						oldV.untrace();
+						valJXVMap.delete('shadowSpread');
+					}
+					if(v.traces!==0) {
+						v.trace(this.stateObj, this, 'shadowSpread', hudView);
+						valJXVMap.set('shadowSpread', v);
+					}
+					v=v.val;
+				}
+				if(shadowObj.spread!==v) {
+					shadowObj.spread = v;
+					_attrChanged = 1;
+					signUpdate();
+				}
+			}
+		});
+
+		//影子颜色:
+		Object.defineProperty(this, 'shadowColor', {
+			get:function(){
+				return pxShadow;
+			},
+			set:function(v){
+				let color=shadowObj.color;
+				if(v instanceof $JXV){
+					let oldV;
+					oldV = valJXVMap.get('shadowColor');
+					if (oldV) {
+						oldV.untrace();
+						valJXVMap.delete('shadowColor');
+					}
+					if(v.traces!==0) {
+						v.trace(this.stateObj, this, 'shadowColor', hudView);
+						valJXVMap.set('shadowColor', v);
+					}
+					v=v.val;
+				}
+				if(Array.isArray(v)) {
+					color[0] = v[0];
+					color[1] = v[1];
+					color[2] = v[2];
+					color[3] = v[3];
+					_attrChanged = 1;
+					signUpdate();
+				}else if(typeof(v)==="string"){
+					[color[0],color[1],color[2],color[3]]=JAXEnv.parseColor(v);
+				}
+			}
+		});
+
 		//渐变填充:
 		Object.defineProperty(this, 'gradient', {
 			get: function () {
@@ -255,13 +437,15 @@ JAXHudBox=function(jaxEnv)
 			set: function (v) {
 				if(v instanceof $JXV){
 					let oldV;
-					oldV=valJXVMap['gradient'];
-					if(oldV){
+					oldV = valJXVMap.get('gradient');
+					if (oldV) {
 						oldV.untrace();
 						valJXVMap.delete('gradient');
 					}
-					v.trace(this.stateObj,this,'gradient',hudView);
-					valJXVMap.set('gradient',v);
+					if(v.traces!==0) {
+						v.trace(this.stateObj, this, 'gradient', hudView);
+						valJXVMap.set('gradient', v);
+					}
 					v=v.val;
 				}
 				if (v!==gradient) {
@@ -309,12 +493,20 @@ JAXHudBox=function(jaxEnv)
 				style=webObj.style;
 				//关于渐变的:
 				if(curGradient!==gradient){
-					style.background=gradient?gradient:"";
-					curGradient=gradient;
-				}else {
+					if(gradient) {
+						style.background = gradient ? gradient : "";
+						curGradient = gradient;
+					}
+				}
+				if(!curGradient){
 					style.backgroundColor = "rgba(" + colorBox + ")";
 				}
-				style.borderRadius=""+coner+"px";
+				if(coners){
+					//style.borderRadius = "" + coner[0]+"px";
+					style.borderRadius = '${coners[0]}px ${coners[1]}px ${coners[2]}px ${coners[3]}px';
+				}else {
+					style.borderRadius = "" + coner + "px";
+				}
 				switch(borderStyle){
 					case 0:
 					default:
@@ -350,7 +542,9 @@ JAXHudBox.prototype=__Proto;
 {
 	//CSS属性列表
 	JAXHudBox.jaxPptSet=new Set(Array.from(JAXHudObj.jaxPptSet).concat([
-		'color','border','borderStyle','borderColor','coner','shadow','gradient'
+		'color','border','borderStyle','borderColor','coner','coners',
+		'shadow','shadowX','shadowY','shadowBlur','shadowSpread','shadowColor',
+		'gradient'
 	]));
 
 	//---------------------------------------------------------------------------
@@ -378,7 +572,7 @@ JAXHudBox.prototype=__Proto;
 
 		if(!this.webObj) {
 			div = this.webObj = document.createElement('div');
-			div.style.position = "absolute";
+			div.style.position = cssObj.position||"absolute";
 			father = this.father;
 			if (father && father.webObj) {
 				father.webObj.appendChild(div);
@@ -389,14 +583,15 @@ JAXHudBox.prototype=__Proto;
 		if(cssObj.faces){
 			cssObj.jaxObjHash=1;
 		}
+		if(cssObj.jaxId){
+			this["#self"]=this;
+			//添加这个Hud
+			jaxEnv.addHashObj("#"+cssObj.jaxId, this);
+		}
 		//确定StateObj:
 		var stateObj=cssObj.hudState;
 		if(stateObj){
 			ownerState=father?father.stateObj:(owner?owner.stateObj:null);
-			if(cssObj.jaxId){
-				//添加这个State对象
-				jaxEnv.addHashObj("%"+cssObj.jaxId, stateObj);
-			}
 			if(!stateObj.isJAXHudState) {
 				stateObj = jaxHudState(this.jaxEnv, stateObj);
 			}

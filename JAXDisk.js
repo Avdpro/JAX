@@ -1,37 +1,45 @@
-import {Store, get, set, del, clear, keys, drop} from "../extern/idb-keyval.js"
+//import {Store, get, set, del, clear, keys, drop} from "../extern/idb-keyval.js"
+import {JAXDiskStore, get, set, del, clear, keys, drop} from "./JAXDiskDB.js"
 
 var JAXDisk,__Proto;
 
 //***************************************************************************
-//JAX系统虚拟磁盘:
+//JAX's virtual disk system for web
 //***************************************************************************
-JAXDisk=function(diskName)
+JAXDisk=function(diskName,majorDisk=null,code="")
 {
 	this.name=diskName;
-	this.dbStore=new Store('JAXDisk_'+diskName, diskName);
+	//this.dbStore=new Store('JAXDisk_'+diskName, code?(code+"@"+diskName):diskName);
+	this.dbStore=new JAXDiskStore(diskName);
 	this.writeObj=null;
 	this.writeVsn=0;
-	JAXDisk.diskHash[diskName]=this;
+	if(majorDisk){
+		majorDisk.subDisk[code]=this;
+	}else {
+		JAXDisk.diskHash[diskName] = this;
+		this.subDisk={};
+	}
 	this.refCount=1;
+	this.infoStore=new JAXDiskStore(diskName, "info");
+	this.baseStore=new JAXDiskStore(diskName, "base");
 };
 
 //---------------------------------------------------------------------------
-//全部的disk列表
-JAXDisk.sysStore=new Store('JAXDisk_', "System");
+//All available disk:
+//JAXDisk.sysStore=new Store('JAXDisk_', "System");
+JAXDisk.sysStore=JAXDiskStore.systemStore();
 JAXDisk.disks=null;
 JAXDisk.diskHash={};
 
 //***************************************************************************
-//JAXDisk系统函数:
+//JAXDisk static-system functions:
 //***************************************************************************
 {
 	//---------------------------------------------------------------------------
-	//初始化系统:
-	JAXDisk.init=function() {
-		if(JAXDisk.disks){
-			return new Promise((resolve, reject) => {
-				resolve();
-			})
+	//Init jax-disk system.
+	JAXDisk.init=async function(refresh=false) {
+		if(JAXDisk.disks && !refresh){
+			return;
 		}
 		return get("disks", JAXDisk.sysStore).then(list => {
 			if (Array.isArray(list)) {
@@ -45,85 +53,256 @@ JAXDisk.diskHash={};
 	};
 
 	//---------------------------------------------------------------------------
-	//创建一个新的disk:
-	JAXDisk.newDisk = function (diskName) {
+	//Open an disk, may create new disk if param create is true:
+	JAXDisk.openDisk = async function (diskName, create) {
+		let disk;
+		if(!this.disks) {
+			await this.init();
+		}
+		disk = this.diskHash[diskName];
+		if (disk) {
+			//Check if the disk is still there:
+			try {
+				let list = await get("disks", JAXDisk.sysStore);
+				if (list.indexOf(diskName) >= 0) {
+					disk.refCount++;
+					return disk;
+				} else {
+					//The disk is removed.
+					this.disks.delete(diskName);
+					delete this.diskHash[diskName];
+					return null;
+				}
+			}catch(err) {
+				return null;
+			}
+		}
+		if (!this.disks.has(diskName)) {
+			let list=await get("disks",JAXDisk.sysStore);
+			if(list && list.indexOf(diskName)>=0){
+				this.disks.add(diskName);
+				return new JAXDisk(diskName);
+			}
+			if (create) {
+				return await JAXDisk.newDisk(diskName);
+			}
+			return null;
+		} else {
+			let list=await get("disks",JAXDisk.sysStore);
+			if(list && list.indexOf(diskName)>=0) {
+				return new JAXDisk(diskName);
+			}
+			//The disk is removed.
+			this.disks.delete(diskName);
+			delete this.diskHash[diskName];
+			return null;
+		}
+		return null;
+	};
+
+	//---------------------------------------------------------------------------
+	//Check if a disk is exist:
+	JAXDisk.diskExist = function (diskName,doubleCheck=0) {
 		var self=this;
 		return new Promise((resolve, reject) => {
 			if (self.disks.has(diskName)) {
-				resolve(new JAXDisk(diskName));
+				resolve(1);
+			} else {
+				if(doubleCheck){
+					//再次检查数据库:
+					return get("disks",JAXDisk.sysStore).then(list=>{
+						if(list.indexOf(diskName)>=0){
+							JAXDisk.disks.add(diskName);
+							resolve(1);
+						}else{
+							resolve(0);
+						}
+					});
+				}else {
+					resolve(0);
+				}
+			}
+		});
+	};
+
+	//---------------------------------------------------------------------------
+	//Create a new disk:
+	JAXDisk.newDisk = function (diskName) {
+		let self=this,diskObj;
+		if(diskName.indexOf("/")>=0 || diskName.indexOf("*")>=0){
+			throw new Error("New disk: illegal name.");
+		}
+		return new Promise((resolve, reject) => {
+			if (self.disks.has(diskName)) {
+				self.openDisk(diskName,0).then((disk)=>{
+					resolve(disk);
+				});
+				return;
 			}
 			self.disks.add(diskName);
 			set('disks', Array.from(self.disks), self.sysStore).then(() => {
-				//console.log("Will open new disk: "+diskName);
-				let store=new Store('JAXDisk_'+diskName, diskName,1);
-				//console.log("Will create root dir: "+diskName);
+				//let store=new Store('JAXDisk_'+diskName, diskName,1);
+				let store=new JAXDiskStore(diskName);
 				set(".",{},store).then(()=>{
-					//console.log("Will new JAXDisk obj: "+diskName);
-					resolve(new JAXDisk(diskName));
+					diskObj=new JAXDisk(diskName);
+					resolve(diskObj);
 				});
 			})
 		});
 	};
 
 	//---------------------------------------------------------------------------
-	//删除一个Disk
+	//Get a disk's info VO:
+	JAXDisk.getDiskInfo=async function(diskName){
+		let disk,infoStore,info;
+		if(!this.disks) {
+			await this.init();
+		}
+		disk=await this.openDisk(diskName,false);
+		if(!disk){
+			return null;
+		}
+		infoStore=disk.infoStore;
+		if(!infoStore){
+			//disk.infoStore=infoStore=new Store('JAXDiskInfo_'+diskName, diskName,1);
+			disk.infoStore=infoStore=new JAXDiskStore(diskName, "info");
+		}
+		return await get("info",infoStore);
+	};
+
+	//---------------------------------------------------------------------------
+	//Set a disk's info VO:
+	JAXDisk.setDiskInfo=async function(diskName,info){
+		let disk,infoStore,pms;
+		if(!this.disks) {
+			await this.init();
+		}
+		disk=await this.openDisk(diskName);
+		if(!disk){
+			return null;
+		}
+		infoStore=disk.infoStore;
+		if(!infoStore){
+			//disk.infoStore=infoStore=new Store('JAXDiskInfo_'+diskName, diskName,1);
+			disk.infoStore=infoStore=new JAXDiskStore(diskName, "info");
+			await set("info",info,infoStore);
+			return;
+		}
+		if(disk.writeObj){
+			await disk.writeObj;
+		}
+		pms=set("info",info,infoStore);
+		disk.writeObj=pms;
+		pms.writeVsn=disk.writeVsn++;
+		return pms;
+	};
+	
+	//---------------------------------------------------------------------------
+	//Get a disk's info VO:
+	JAXDisk.getDiskAttr=async function(diskName,attr){
+		let disk,infoStore,info;
+		if(!this.disks) {
+			await this.init();
+		}
+		disk=await this.openDisk(diskName,false);
+		if(!disk){
+			return null;
+		}
+		infoStore=disk.infoStore;
+		if(!infoStore){
+			disk.infoStore=infoStore=new JAXDiskStore(diskName, "info");
+		}
+		return await get("attr_"+attr,infoStore);
+	};
+
+	//---------------------------------------------------------------------------
+	//Set a disk's attr:
+	JAXDisk.setDiskAttr=async function(diskName,key,val){
+		let disk,infoStore,pms;
+		if(!this.disks) {
+			await this.init();
+		}
+		disk=await this.openDisk(diskName);
+		if(!disk){
+			return null;
+		}
+		infoStore=disk.infoStore;
+		if(!infoStore){
+			disk.infoStore=infoStore=new JAXDiskStore(diskName, "info");
+			await set("attr_"+key,val,infoStore);
+			return;
+		}
+		if(disk.writeObj){
+			await disk.writeObj;
+		}
+		pms=set("attr_"+key,val,infoStore);
+		disk.writeObj=pms;
+		pms.writeVsn=disk.writeVsn++;
+		return pms;
+	};
+
+	//---------------------------------------------------------------------------
+	//Remove a disk, clear the DB(but not drop the db)
 	JAXDisk.dropDisk = function (diskName) {
-		var self,disk;
+		let self;
 		self=this;
 		return new Promise((resolve, reject) => {
-			if (!self.disks.has(diskName)) {
-				reject("Disk not exist!");
-			}
-			disk = self.openDisk(diskName).then(diskObj=>{
+			self.openDisk(diskName).then(async diskObj=>{
 				if(diskObj){
-					clear(diskObj.dbStore);
+					if(diskObj.dbStore) {
+						await clear(diskObj.dbStore);
+						if(diskObj.infoStore) {
+							await clear(diskObj.infoStore);
+						}
+						if(diskObj.baseStore) {
+							await clear(diskObj.baseStore);
+						}
+					}
+					//await drop("Disk_"+diskName);
 				}
 				self.disks.delete(diskName);
+				delete self.diskHash[diskName];
 				set('disks', Array.from(self.disks), self.sysStore).then(resolve);
 			});
 		});
 	};
 
 	//---------------------------------------------------------------------------
-	//打开一个disk:
-	JAXDisk.openDisk = function (diskName, create) {
-		return new Promise((resolve, reject) => {
-			var disk;
-			disk = this.diskHash[diskName];
-			if (disk) {
-				disk.refCount++;
-				resolve(disk);
-			} else {
-				if (!this.disks.has(diskName)) {
-					if (create) {
-						//return JAXDisk.newDisk(diskName).then(resolve);
-						JAXDisk.newDisk(diskName).then(resolve);
-					} else {
-						reject("Disk not exist!");
-					}
-				} else {
-					resolve(new JAXDisk(diskName));
-				}
-			}
-		});
-	};
-
-	//---------------------------------------------------------------------------
-	//获得当前disk列表:
+	//Get current disks list:
 	JAXDisk.getDisks=function(){
 		return Array.from(this.disks);
+	};
+	
+	//---------------------------------------------------------------------------
+	//Get current disk names
+	JAXDisk.getDiskNames=async function(){
+		let list,i,n,name,disk;
+		await this.init(true);
+		list=Array.from((this.disks));
+		n=list.length;
+		for(i=0;i<n;i++){
+			name=list[i];
+			disk=await JAXDisk.openDisk(name,0);
+			if(!disk){
+				list.splice(i,1);
+				JAXDisk.disks.delete(name);
+				delete JAXDisk.diskHash[name];
+				n--;i--;
+			}
+		}
+		return list;
 	};
 }
 
 JAXDisk.prototype=__Proto={};
 //***************************************************************************
-//JAXDisk对象成员函数:
+//JAXDisk member funcitons
 //***************************************************************************
 {
 	var divPath=function (dirPath)
 	{
 		let pos,dirName,upPath;
-		//分离目录名和上级目录的路径:
+		//Split dir upper and base:
 		if(dirPath.endsWith("/")){
 			dirPath=dirPath.substring(0,dirPath.length-1);
 		}
@@ -142,12 +321,15 @@ JAXDisk.prototype=__Proto={};
 	};
 
 	//-----------------------------------------------------------------------
-	//创建一个目录
-	__Proto.newDir=function(dirPath)
+	//Create a new dir:
+	__Proto.newDir=function(dirPath,allowRoot=0,recursive=true)
 	{
 		var self=this;
+		let writeVsn;
 		if(dirPath==='.'){
-			throw "Error: '.' is not allowed for folder name.";
+			if(!allowRoot) {
+				throw "Error: '.' is not allowed for folder name.";
+			}
 		}
 
 		if(dirPath.endsWith("/")){
@@ -157,91 +339,87 @@ JAXDisk.prototype=__Proto={};
 			dirPath=dirPath.substring(1);
 		}
 
-		//console.log("JAXDisk.newDir: newDir: "+dirPath);
-		return get(dirPath,self.dbStore).then(curDirObj=>{
+		async function mkDirList(list){
+			let i,n,stub;
+			n=list.length;
+			for(i=0;i<n;i++) {
+				stub=list[i];
+				await set(stub.path, stub.obj,self.dbStore);
+			}
+			return list[0];
+		}
 
-			let time=Date.now();
-
-			console.log("JAXDisk.newDir: "+dirPath+", curDirObj: "+curDirObj);
-			//目录路径是不是已经存在且是目录:
-			if(curDirObj instanceof Uint8Array){
-				throw "Can't create dir on file!"
-			}else if(typeof(curDirObj)==='object'){
-				console.log("JAXDisk.newDir: done1: "+dirPath+"="+curDirObj);
-				return curDirObj;
+		async function doNewDir() {
+			let waitPath;
+			if(self.writeObj && self.writeObj.writeVsn!==writeVsn){
+				waitPath=self.writeObj.path;
+				await self.writeObj;
 			}
 
-			//目录路径是不是已经存在但不是目录:
-			if(curDirObj){
-				throw "Error: Path is a file";
-			}
+			return get(dirPath, self.dbStore).then(async curDirObj => {
+				let upPath, pos, dirName;
+				let dirList;
+				let time = Date.now();
 
-			//目录路径不存在，创建目录:
-			let upPath,pos,dirName;
+				dirList=[];
+				
+				//Check if path is already there and if it's dir?
+				if (curDirObj instanceof Uint8Array) {
+					throw "Can't create dir on file!";
+				} else if (typeof (curDirObj) === 'object') {
+					return curDirObj;
+				}
 
-			//分离目录名和上级目录的路径:
-			[dirName,upPath]=divPath(dirPath);
-
-			//如果有上一级路径，需要确保上一级路径存在:
-			if(upPath){
-				//有上一级目录，确保上一级目录存在:
-				console.log("JAXDisk.newDir: make sure upPath: "+upPath);
-				return self.newDir(upPath).then(dirObj=>{
-					console.log("JAXDisk.newDir: upPath dirObj: "+dirObj+", dirPath="+dirPath+", upPath="+upPath);
-					if(dirObj) {
-						//获得了上一级目录的目录对象,将新目录存根加入上一级目录的数组里:
-						dirObj[dirName] = {
+				//Path is empty, create dir:
+				dirList.push({path:dirPath,obj:{}});
+				[dirName, upPath] = divPath(dirPath);
+				if(!upPath){
+					upPath=".";
+				}
+				while(upPath){
+					let dirObj;
+					dirObj=await get(upPath, self.dbStore);
+					if(!dirObj){
+						if(!recursive){
+							return null;
+						}
+						dirObj={};
+						dirObj[dirName]={
 							name: dirName, dir: 1, createTime: time, modifyTime: time,
 						};
-						//保存上一级对象
-						return set(upPath, dirObj, self.dbStore).then(() => {
-							//创建/保存当前目录对象:
-							let newDirObj = {};
-							set(upPath ? (upPath + "/" + dirName) : dirName, newDirObj, self.dbStore);
-							console.log("JAXDisk.newDir: done: "+dirPath+"="+newDirObj);
-							return newDirObj;
-						});
+						dirList.push({path:upPath,obj:dirObj});
 					}else{
-						console.log("JAXDisk.newDir: No dirObj: "+dirPath+"="+upPath);
+						dirObj[dirName]={
+							name: dirName, dir: 1, createTime: time, modifyTime: time,
+						};
+						dirList.push({path:upPath,obj:dirObj});
+						break;
 					}
-				});
-			}
-			//没有有上一级目录，直接创建当前目录对象:
-			return get(dirPath,this.dbStore).then((obj)=>{
-				if(!obj){
-					//创建/保存当前目录对象:
-					let newDirObj={};
-					return set(dirPath,newDirObj,self.dbStore).then(()=>{
-						console.log("newDir created: "+dirPath+"="+newDirObj);
-						return newDirObj;
-					}).then(()=>{
-						return get(".",self.dbStore).then(rootObj=>{
-							if(!rootObj){
-								throw "disk has no root dir!";
-							}
-							rootObj[dirName]={
-								name:dirName,dir:1,createTime:time,modifyTime:time,
-							};
-							return set(".",rootObj,self.dbStore).then(()=>{
-								console.log("newDir done: "+dirPath+"="+newDirObj);
-								return newDirObj;
-							});
-						});
-					});
-				}else if(typeof(obj)!=='object'){
-					throw "Path is already used!"
+					if(upPath==="."){
+						throw "newDir: Bad disk structure!";
+					}
+					[dirName, upPath] = divPath(upPath);
+					if(!upPath){
+						upPath=".";
+					}
 				}
-				console.log("newDir done: "+dirPath+"="+obj);
-				return obj;
-			});
-		})
+				return await mkDirList(dirList);
+			})
+		}
+		//Sync write operation:
+		writeVsn=this.writeVsn++;
+		self.writeObj=doNewDir();
+		self.writeObj.writeVsn=writeVsn;
+		self.writeObj.path=dirPath;
+		//console.log("Set wait obj: "+dirPath);
+		return self.writeObj;
 	};
 
 	//-----------------------------------------------------------------------
-	//删除一个文件或目录
-	__Proto.del=function(path,unReg=1)
-	{
+	//Delete an entry-item, if path is a dir, also delete the whole dir tree under it.
+	__Proto.del=function(path){
 		var self=this;
+		let writeVsn;
 
 		//console.log("Disk.del: "+path);
 		if(path.endsWith("/")){
@@ -254,60 +432,102 @@ JAXDisk.prototype=__Proto={};
 			path=path.substring(2);
 		}
 
-		return get(path,self.dbStore).then(curObj=>{
-			let tgtName,upPath;
-			//这个目录/文件本身不存在的, 不算失败:
-			if(!curObj){
-				return;
+		//-------------------------------------------------------------------
+		//Delete file/dir item array(list)
+		async function doDelList(list){
+			let i,n,item,pList;
+			n=list.length;
+			pList=[];
+			for(i=0;i<n;i++){
+				item=list[i];
+				pList.push(del(item,self.dbStore));//Delete one item
 			}
-			//分离目录名和上级目录的路径:
-			[tgtName,upPath]=divPath(path);
+			return Promise.allSettled(pList);
+		}
 
-			//删除一个单位: 如果是目录，还要删除它的子节点
-			function delThisObj(){
-				//如果是文件的话，直接删除:
-				if(curObj instanceof Uint8Array) {
-					return del(path,self.dbStore);
+		//-------------------------------------------------------------------
+		//List an dir's all sub-tree items including sub in sub
+		async function doMakeList(tgtPath,tgtList){
+			let list,i,n,stub;
+			tgtList.push(tgtPath);
+			list=await self.getEntries(tgtPath);
+			n=list.length;
+			for(i=0;i<n;i++){
+				stub=list[i];
+				if(stub.dir){
+					await doMakeList((tgtPath?(tgtPath+"/"+stub.name):stub.name),tgtList);
+				}else{
+					tgtList.push((tgtPath?(tgtPath+"/"+stub.name):stub.name));
 				}
-				//这是一个目录，还要删除这个目录里面的文件
-				return del(path,self.dbStore).then(()=>{
-					let list=[],name,stub,subPath;
-					for(name in curObj){
-						subPath=upPath+"/"+tgtName+"/"+name;
-						list.push(self.del(subPath,0));
-					}
-					return Promise.all(list);
-				});
 			}
+		}
+
+		//-------------------------------------------------------------------
+		//Erase item's entry in upper dir record:
+		async function doDelEntry(tgtPath){
+			let tgtName,upPath;
+			[tgtName,upPath]=divPath(tgtPath);
 			if(!upPath){
 				upPath=".";
 			}
-			if(unReg){
-				//更新上一级目录里的纪录:
-				return get(upPath,self.dbStore).then((upDirObj)=>{
-					if(upDirObj){
-						//存在上一级目录，删除索引:
-						delete upDirObj[tgtName];
-						return set(upPath,upDirObj,self.dbStore).then(delThisObj);
-					}
+			return get(upPath,self.dbStore).then((upDirObj)=>{
+				if(upDirObj){
+					delete upDirObj[tgtName];
+					return set(upPath,upDirObj,self.dbStore);
+				}
+			});
+		}
 
-					//上一级对象不存在:
-					return delThisObj();
-				});
+		//-------------------------------------------------------------------
+		//Check delete item type, exec the del operation:
+		async function checkAndDel()
+		{
+			let waitPath;
+			if(self.writeObj && self.writeObj.writeVsn!==writeVsn){
+				waitPath=self.writeObj.path;
+				console.log("Waiting: "+path+" on "+waitPath);
+				await self.writeObj;
+				console.log("Wait done: "+path+" on "+waitPath);
 			}
 
-			return delThisObj();
-		});
+			return get(path,self.dbStore).then(async (delObj)=> {
+				let delList;
+
+				//Do the delete:
+				delList=[];
+				if(delObj instanceof Uint8Array) {
+					//File, nothing more.
+					delList.push(path);
+					return doDelList(delList).then(()=>{
+						return doDelEntry(path);
+					});
+				}else if(delObj){
+					//Dir, generate the sub-item list to delete
+					await doMakeList(path,delList);
+					return doDelList(delList).then(()=>{
+						return doDelEntry(path);
+					});
+				}else{
+					return doDelEntry(path);
+				}
+			});
+		}
+		writeVsn=this.writeVsn++;
+		self.writeObj=checkAndDel();
+		self.writeObj.writeVsn=writeVsn;
+		self.writeObj.path=path;
+		//console.log("Set wait obj: "+path);
+		return self.writeObj;
 	};
 
 	//-----------------------------------------------------------------------
-	//保存一个文件,fileObj可以是File对象/字符串/Array对象等，最终保存为字节数组:
-	__Proto.saveFile=function(path,fileObj)
+	//Save a file, fileObj can be string, File-Object, etc.
+	__Proto.saveFile=function(path,fileObj,recursive=true)
 	{
-		var self,tgtName,upPath,byteAry,time,writeVsn;
+		var self,tgtName,upPath,byteAry,time,writeVsn,byteHex;
 		self=this;
 
-		console.log("JAXDisk.saveFile: Disk.saveFile: "+path);
+		//console.log("JAXDisk.saveFile: Disk.saveFile: "+path);
 		if(path.endsWith("/")){
 			throw "JAXDisk.saveFile: Error: filename can't end with '/'!";
 		}
@@ -317,95 +537,129 @@ JAXDisk.prototype=__Proto={};
 
 		[tgtName,upPath]=divPath(path);
 		time=Date.now();
-		writeVsn=this.writeVsn;
 
-		//把准备好的字节内容写入文件:
+		let digestBytes=async function(buf) {
+			let hex;
+			const hashBuffer = await crypto.subtle.digest('SHA-256', buf);       	    	// hash the message
+			const hashArray = Array.from(new Uint8Array(hashBuffer));                     			// convert buffer to byte array
+			hex= hashArray.map(b => b.toString(16).padStart(2, '0')).join(''); // convert bytes to hex string
+			return hex;
+		};
+
+		//Save byte content to DB, update entry info, make base backup if needed:
 		async function saveByteAry(){
-			console.log("saveByteAry: "+path+", writeObj: "+(self.writeObj?self.writeObj.filePath:"null"));
+			let dirVO,stub,oldData,oldHash;
+			//console.log("saveByteAry: "+path+", writeObj: "+(self.writeObj?self.writeObj.filePath:"null"));
+			//wait for current update file:
 			if(self.writeObj && self.writeObj.writeVsn!==writeVsn){
 				await self.writeObj;
 			}
-			set(upPath?(upPath+"/"+tgtName):tgtName,byteAry,self.dbStore);
-			if(upPath){
-				return get(upPath,self.dbStore).then(dirObj=>{
-					if(dirObj){
-						let stub=dirObj[tgtName];
-						if(stub){
-							//更新文件修改时间:
-							stub.modifyTime=time;
-							stub.size=byteAry.byteLength;
-						}else{
-							//创建文件:
-							dirObj[tgtName]={
-								name:tgtName,dir:0,createTime:time,modifyTime:time,size:byteAry.byteLength
-							};
-						}
-						console.log("JAXDisk.saveFile: Update dir obj: "+upPath+"="+JSON.stringify(dirObj));
-						return set(upPath,dirObj,self.dbStore);
-					}else{
-						console.log("JAXDisk.saveFile: Will new dir obj: "+upPath);
-						return self.newDir(upPath).then(dirObj=>{
-							if(dirObj) {
-								dirObj[tgtName] = {
-									name: tgtName, dir: 0, createTime: time, modifyTime: time, size: byteAry.byteLength
-								};
-								console.log("JAXDisk.saveFile: New dir obj: "+upPath+"="+JSON.stringify(dirObj));
-								return set(upPath,dirObj,self.dbStore);
-							}else{
-								console.log("JAXDisk.saveFile: Error: no dir-obj: "+upPath);
-							}
-						});
+			//get upper dirVO:
+			dirVO=await get(upPath?upPath:".",self.dbStore);
+			if(!dirVO){
+				throw "Path is not available: "+upPath;
+			}
+			stub=dirVO[tgtName];
+			if(stub){
+				//file exists, update stub, save base if 1st :
+				oldHash=stub.hash;
+				stub.modifyTime=time;
+				if(!stub.modified && (oldHash!==byteHex || stub.size!==byteAry.byteLength)) {
+					oldData=await get(upPath ? (upPath + "/" + tgtName) : tgtName, self.dbStore);
+					//save the base file content:
+					if(oldData) {
+						set(upPath ? (upPath + "/" + tgtName) : tgtName, oldData, self.baseStore);
 					}
-				});
+					stub.modified=true;
+				}
+				stub.size=byteAry.byteLength;
+				stub.hash=byteHex;
+				//update stub:
 			}else{
-				//这是根目录
-				return get(".",self.dbStore).then(dirObj=>{
-					if(dirObj){
-						let stub=dirObj[tgtName];
-						if(stub){
-							//更新文件修改时间:
-							stub.modifyTime=time;
-							stub.size=byteAry.byteLength;
-						}else{
-							//创建文件:
-							dirObj[tgtName]={
-								name:tgtName,dir:0,createTime:time,modifyTime:time,size:byteAry.byteLength
-							}
-						}
-						console.log("New dir obj: /="+JSON.stringify(dirObj));
-						return set(".",dirObj,self.dbStore);
-					}
+				//new file, create stub:
+				dirVO[tgtName]={
+					name:tgtName,dir:0,createTime:time,modifyTime:time,size:byteAry.byteLength,modified:true,
+					hash:byteHex
+				};
+			}
+			await set(upPath?(upPath+"/"+tgtName):tgtName,byteAry,self.dbStore);
+			await set(upPath?upPath:".",dirVO,self.dbStore);
+		}
+		
+		async function arrayBuffer(file){
+			if(file.arrayBuffer){
+				return file.arrayBuffer();
+			}
+			return new Promise((onDone,onError)=>{
+				let reader=new FileReader();
+				reader.onload=function(event) {
+					let arrayBuffer = event.target.result;
+					onDone(arrayBuffer);
+				};
+				reader.readAsArrayBuffer(file);
+			})
+		}
+
+		function doCopy(){
+			//Ensure saved object is ByteArray
+			if (typeof (fileObj) === 'string') {
+				let encoder = new TextEncoder();
+				byteAry = encoder.encode(fileObj);
+				return digestBytes(byteAry).then(hex=>{
+					writeVsn = self.writeVsn++;
+					byteHex=hex;
+					self.writeObj =saveByteAry();
+					self.writeObj.filePath = path;
+					self.writeObj.writeVsn = writeVsn;
+					return self.writeObj;
+				});
+			} else if (fileObj instanceof File) {
+				return arrayBuffer(fileObj).then(async buf => {
+					byteAry = new Uint8Array(buf);
+					return digestBytes(byteAry).then(hex=>{
+						writeVsn = self.writeVsn++;
+						byteHex=hex;
+						self.writeObj =saveByteAry();
+						self.writeObj.filePath = path;
+						self.writeObj.writeVsn = writeVsn;
+						return self.writeObj;
+					});
+				});
+			} else if (fileObj instanceof Uint8Array) {
+				byteAry = fileObj;
+				return digestBytes(byteAry).then(hex=>{
+					writeVsn = self.writeVsn++;
+					byteHex=hex;
+					self.writeObj =saveByteAry();
+					self.writeObj.filePath = path;
+					self.writeObj.writeVsn = writeVsn;
+					return self.writeObj;
+				});
+			}else if(fileObj instanceof ArrayBuffer){
+				byteAry = new Uint8Array(fileObj);
+				return digestBytes(byteAry).then(hex=>{
+					writeVsn = self.writeVsn++;
+					byteHex=hex;
+					self.writeObj =saveByteAry();
+					self.writeObj.filePath = path;
+					self.writeObj.writeVsn = writeVsn;
+					return self.writeObj;
 				});
 			}
 		}
 
-		//首先把对象转换为ByteArray
-		if(typeof(fileObj)==='string'){
-			let encoder=new TextEncoder();
-			byteAry=encoder.encode(fileObj);
-			self.writeObj=saveByteAry();
-			self.writeObj.filePath=path;
-			self.writeObj.writeVsn=self.writeVsn++;
-			return self.writeObj;
-		}else if(fileObj instanceof File){
-			this.writeObj=fileObj.arrayBuffer().then(buf=>{
-				byteAry=new Uint8Array(buf);
-				return saveByteAry();
+		if(upPath && recursive){
+			//Ensure the target dir is there:
+			return self.newDir(upPath).then(()=>{
+				return doCopy();
 			});
-			self.writeObj.filePath=path;
-			self.writeObj.writeVsn=self.writeVsn++;
-			return self.writeObj;
-		}else if(fileObj instanceof Uint8Array){
-			byteAry=fileObj;
-			self.writeObj=saveByteAry();
-			self.writeObj.filePath=path;
-			self.writeObj.writeVsn=self.writeVsn++;
-			return self.writeObj;
+		}else{
+			return doCopy();
 		}
 	};
 
 	//-----------------------------------------------------------------------
-	//读取一个文件二进制数据
+	//Load file data as ByteArray
 	__Proto.loadFile=function(path)
 	{
 		var self;
@@ -422,7 +676,7 @@ JAXDisk.prototype=__Proto={};
 	};
 
 	//-----------------------------------------------------------------------
-	//读取一个文件文本
+	//Load file data as text
 	__Proto.loadText=function(path)
 	{
 		var self;
@@ -432,15 +686,27 @@ JAXDisk.prototype=__Proto={};
 		}
 		return get(path,self.dbStore).then(fileObj=>{
 			if(fileObj instanceof Uint8Array){
-				var enc = new TextDecoder("utf-8");
+				let enc = new TextDecoder("utf-8");
 				return enc.decode(fileObj);
 			}
+			return null;
+		}).catch(err=>{
 			return null;
 		});
 	};
 
 	//-----------------------------------------------------------------------
-	//列出某个Path下的文件，如果不是目录，返回空，如果是目录，返回文件vo列表:
+	//Read file, if encode!==null, read as text:
+	__Proto.readFile=function(path,encode=null){
+		if(encode) {
+			return this.loadText(path);
+		}else {
+			return this.loadFile(path);
+		}
+	};
+	
+	//-----------------------------------------------------------------------
+	//List sub-item-vo under path, return null if path is a file:
 	__Proto.getEntries=function(path)
 	{
 		var self;
@@ -460,7 +726,7 @@ JAXDisk.prototype=__Proto={};
 	};
 
 	//-----------------------------------------------------------------------
-	//看看某个文件是不是存在:
+	//Check if a path is existed:
 	__Proto.isExist=function(path)
 	{
 		var self=this;
@@ -476,53 +742,63 @@ JAXDisk.prototype=__Proto={};
 	};
 
 	//-----------------------------------------------------------------------
-	//copy一个文件/目录:
-	__Proto.copyFile=function(path,newPath,overwrite=1)
-	{
-		var self=this;
-		if(path.startsWith("/")){
-			path=path.substring(1);
+	//Get item entry(info) by path
+	__Proto.getEntry=async function(path){
+		let self=this;
+		let dir,fileName;
+		[fileName,dir]=divPath(path);
+		if(dir.startsWith("/")){
+			dir=dir.substring(1);
 		}
-		if(path.endsWith("/")){
-			path=path.substring(0,path.length-1);
+		if(!dir){
+			dir='.';
 		}
-		if(!path){
-			path='.';
-		}
-		return get(path,self.dbStore).then(fileObj=>{
-			if(!fileObj){
-				throw "Missing source file: "+path;
+		let dirObj=await get(dir,self.dbStore);
+		if(dirObj) {
+			if(fileName===""){
+				return {name:self.name,dir:1,disk:1};
 			}
-			if(fileObj instanceof Uint8Array){
-				//copy 文件
-				return self.isExist(newPath).then(hasFile=>{
-					if(hasFile && (!overwrite)){
-						throw "Target path taken!"
-					}
-					return self.saveFile(newPath,fileObj);
-				});
-			}else{
-				return self.newDir(newPath).then(()=>{
-					let subs,subName,list;
-					list=[];
-					subs=Object.keys(fileObj);
-					list.push(self.newDir(newPath));
-					for(subName of subs){
-						list.push(self.copyFile(path+"/"+subName,newPath+"/"+subName,overwrite));
-					}
-					return Promise.all(list).then(()=>{
-						set(newPath,fileObj,self.dbStore)
-					});
-				});
-			}
-		});
+			return dirObj[fileName]||null;
+		}
+		return null;
 	};
 
 	//-----------------------------------------------------------------------
-	//改名一个文件/目录:
-	__Proto.rename=function(path,newPath)
+	//Set item entry-info by path
+	__Proto.setEntryInfo=async function(path,info){
+		let self=this;
+		let entry,pms;
+		entry=await this.getEntry(path);
+		if(typeof(entry)==="object"){
+			let dir,fileName,writeVersion;
+			[fileName,dir]=divPath(path);
+			if(dir.startsWith("/")){
+				dir=dir.substring(1);
+			}
+			if(!dir){
+				dir='.';
+			}
+			Object.assign(entry,info);
+			if(self.writeObj){
+				await self.writeObj;
+			}
+			writeVersion=self.writeVsn++;
+			self.writeObj=pms=get(dir,self.dbStore).then((dirInfo)=>{
+				dirInfo[fileName]=entry;
+				return set(dir,dirInfo,self.dbStore);
+			});
+			pms.writeVsn=writeVersion;
+			return pms;
+		}
+	};
+
+	//-----------------------------------------------------------------------
+	//copy a file or dir, src can from another disk (orgDisk)
+	__Proto.copyFile=function(path,newPath,overwrite=1,orgDisk=null)
 	{
 		var self=this;
+		var dirList,fileList;
+		orgDisk=orgDisk||this;
 		if(path.startsWith("/")){
 			path=path.substring(1);
 		}
@@ -532,29 +808,150 @@ JAXDisk.prototype=__Proto={};
 		if(!path){
 			path='.';
 		}
-		return get(path,self.dbStore).then(fileObj=>{
-			if(!fileObj){
-				throw "Missing source file.";
+
+		if(newPath.startsWith("/")){
+			newPath=newPath.substring(1);
+		}
+		if(newPath.endsWith("/")){
+			newPath=newPath.substring(0,newPath.length-1);
+		}
+		if(!newPath){
+			newPath='.';
+		}
+
+		dirList=[];
+		fileList=[];
+
+		async function checkInItem(itemPath,tgtPath) {
+			var itemObj,subPath,subTgtPath,curItem;
+			itemObj=await get(itemPath,orgDisk.dbStore);
+			if(itemObj instanceof Uint8Array){
+				curItem=await get(tgtPath,self.dbStore);//Is target there?
+				if(curItem) {
+					if(overwrite && curItem instanceof Uint8Array) {//Can't overwrite a dir with file!
+						fileList.push({org: itemPath, tgt: tgtPath});
+					}
+				}else{
+					fileList.push({org: itemPath, tgt: tgtPath});
+				}
+			}else if(typeof(itemObj)==="object"){
+				var stub,itemName,name;
+				dirList.push({org:itemPath,tgt:tgtPath});
+				for(itemName in itemObj){
+					name=itemName;
+					stub=itemObj[name];
+					subPath=itemPath?(itemPath+"/"+stub.name):stub.name;
+					subTgtPath=tgtPath?(tgtPath+"/"+stub.name):stub.name;
+					await checkInItem(subPath,subTgtPath);
+				}
 			}
-			return self.copyFile(path,newPath).then(()=>{
-				self.del(path);
+		}
+
+		function copyOneFile(stub){
+			return orgDisk.loadFile(stub.org).then(fileData=>{
+				return self.saveFile(stub.tgt,fileData);
+			});
+		}
+
+		return get(path,orgDisk.dbStore).then(async fileObj=>{
+			let i,n,pList;
+			if(!fileObj){
+				throw "Missing copy source: "+path;
+			}
+			await checkInItem(path,newPath);
+			pList=[];
+			n=dirList.length;
+			for(i=0;i<n;i++){
+				pList.push(self.newDir(dirList[i].tgt));
+			}
+			return Promise.allSettled(pList).then(async ()=>{
+				let pList=[],p,stub;
+				n=fileList.length;
+				for(i=0;i<n;i++){
+					stub=fileList[i];
+					p=copyOneFile(stub);
+					pList.push(p);
+				}
+				return Promise.allSettled(pList).then(()=>{
+					return dirList.map((item)=>{
+						return item.tgt;
+					}).concat(fileList.map(item=>{
+						return item.tgt;
+					}));
+				});
 			});
 		});
 	};
 
 	//-----------------------------------------------------------------------
-	//把Zip展开在指定路径里:
-	__Proto.zip2Path=function()
+	//Rename a file/dir
+	__Proto.rename=function(path,newPath)
 	{
-		//TODO: Code this:
+		var self=this;
+		let orgName,orgPath,tgtName,tgtPath;
+
+		if(path.startsWith("/")){
+			path=path.substring(1);
+		}
+		if(path.endsWith("/")){
+			path=path.substring(0,path.length-1);
+		}
+		if(!path){
+			path='.';
+		}
+		[orgName, orgPath] = divPath(path);
+
+		if(newPath.startsWith("/")){
+			newPath=newPath.substring(1);
+		}
+		if(newPath.endsWith("/")){
+			newPath=newPath.substring(0,newPath.length-1);
+		}
+		if(!newPath){
+			newPath='.';
+		}
+		[tgtName, tgtPath] = divPath(newPath);
+
+		if(tgtPath!==orgPath){
+			throw "Path error."
+		}
+		if(orgName===tgtName){//Same name:
+			return (async function(){return true})();
+		}
+
+		return self.copyFile(path,newPath).then(()=>{
+			return self.del(path);
+		});
 	};
 
 	//-----------------------------------------------------------------------
-	//指定路径压缩为Zip:
-	__Proto.path2Zip=function()
-	{
-		//TODO: Code this:
-	}
+	//Get all items path-name in a flat list:
+	__Proto.getAllItemPath=async function(){
+		return await keys(this.dbStore);
+	};
+	
+	//-----------------------------------------------------------------------
+	//Load a file's base version:
+	__Proto.loadFileBase=async function(path,encode=null){
+		let self,fileObj;
+		self=this;
+		if(path.startsWith("/")){
+			path=path.substring(1);
+		}
+		if(!self.baseStore){
+			return null;
+		}
+		fileObj=await get(path,self.baseStore);
+		if(fileObj instanceof Uint8Array){
+			if(encode) {
+				let enc = new TextDecoder("utf-8");
+				return enc.decode(fileObj);
+			}else{
+				return fileObj;
+			}
+		}
+		return null;
+	};
 }
 
 export {JAXDisk};

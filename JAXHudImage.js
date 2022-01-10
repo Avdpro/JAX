@@ -1,4 +1,4 @@
-import {$JXV} from "./JAXEnv.js";
+import {JAXEnv,$JXV} from "./JAXEnv.js";
 import {JAXHudObj} from "./JAXHudObj.js";
 import {jaxHudState} from "./JAXHudState.js";
 
@@ -126,13 +126,15 @@ JAXHudImage=function(jaxEnv)
 			set: function (v) {
 				if(v instanceof $JXV){
 					let oldV;
-					oldV=valJXVMap['autoSize'];
-					if(oldV){
+					oldV = valJXVMap.get('autoSize');
+					if (oldV) {
 						oldV.untrace();
 						valJXVMap.delete('autoSize');
 					}
-					v.trace(this.stateObj,this,'autoSize',hudView);
-					valJXVMap.set('autoSize',v);
+					if(v.traces!==0) {
+						v.trace(this.stateObj, this, 'autoSize', hudView);
+						valJXVMap.set('autoSize', v);
+					}
 					v=v.val;
 				}
 				if (autoSize!==v) {
@@ -156,13 +158,15 @@ JAXHudImage=function(jaxEnv)
 			set: function (v) {
 				if(v instanceof $JXV){
 					let oldV;
-					oldV=valJXVMap['img3x3'];
-					if(oldV){
+					oldV = valJXVMap.get('img3x3');
+					if (oldV) {
 						oldV.untrace();
 						valJXVMap.delete('img3x3');
 					}
-					v.trace(this.stateObj,this,'img3x3',hudView);
-					valJXVMap.set('img3x3',v);
+					if(v.traces!==0) {
+						v.trace(this.stateObj, this, 'img3x3', hudView);
+						valJXVMap.set('img3x3', v);
+					}
 					v=v.val;
 				}
 				let url;
@@ -205,13 +209,15 @@ JAXHudImage=function(jaxEnv)
 			set: function (v) {
 				if(v instanceof $JXV){
 					let oldV;
-					oldV=valJXVMap['img3x3Width'];
-					if(oldV){
+					oldV = valJXVMap.get('img3x3Width');
+					if (oldV) {
 						oldV.untrace();
 						valJXVMap.delete('img3x3Width');
 					}
-					v.trace(this.stateObj,this,'img3x3Width',hudView);
-					valJXVMap.set('img3x3Width',v);
+					if(v.traces!==0) {
+						v.trace(this.stateObj, this, 'img3x3Width', hudView);
+						valJXVMap.set('img3x3Width', v);
+					}
 					v=v.val;
 				}
 				let url;
@@ -242,13 +248,15 @@ JAXHudImage=function(jaxEnv)
 			set: function (v) {
 				if(v instanceof $JXV){
 					let oldV;
-					oldV=valJXVMap['fitSize'];
-					if(oldV){
+					oldV = valJXVMap.get('fitSize');
+					if (oldV) {
 						oldV.untrace();
 						valJXVMap.delete('fitSize');
 					}
-					v.trace(this.stateObj,this,'fitSize',hudView);
-					valJXVMap.set('fitSize',v);
+					if(v.traces!==0) {
+						v.trace(this.stateObj, this, 'fitSize', hudView);
+						valJXVMap.set('fitSize', v);
+					}
 					v=v.val;
 				}
 				if (fitSize!==v) {
@@ -268,13 +276,15 @@ JAXHudImage=function(jaxEnv)
 			set: function (v) {
 				if(v instanceof $JXV){
 					let oldV;
-					oldV=valJXVMap['alignX'];
-					if(oldV){
+					oldV = valJXVMap.get('alignX');
+					if (oldV) {
 						oldV.untrace();
 						valJXVMap.delete('alignX');
 					}
-					v.trace(this.stateObj,this,'alignX',hudView);
-					valJXVMap.set('alignX',v);
+					if(v.traces!==0) {
+						v.trace(this.stateObj, this, 'alignX', hudView);
+						valJXVMap.set('alignX', v);
+					}
 					v=v.val;
 				}
 				v = v===IMG_ALIGN_LEFT?IMG_ALIGN_LEFT:(v===IMG_ALIGN_RIGHT?IMG_ALIGN_RIGHT:IMG_ALIGN_CENTER);
@@ -295,13 +305,15 @@ JAXHudImage=function(jaxEnv)
 			set: function (v) {
 				if(v instanceof $JXV){
 					let oldV;
-					oldV=valJXVMap['alignY'];
-					if(oldV){
+					oldV = valJXVMap.get('alignY');
+					if (oldV) {
 						oldV.untrace();
 						valJXVMap.delete('alignY');
 					}
-					v.trace(this.stateObj,this,'alignY',hudView);
-					valJXVMap.set('alignY',v);
+					if(v.traces!==0) {
+						v.trace(this.stateObj, this, 'alignY', hudView);
+						valJXVMap.set('alignY', v);
+					}
 					v=v.val;
 				}
 				v = v===IMG_ALIGN_TOP?IMG_ALIGN_TOP:(v===IMG_ALIGN_BOTTOM?IMG_ALIGN_BOTTOM:IMG_ALIGN_CENTER);
@@ -322,13 +334,15 @@ JAXHudImage=function(jaxEnv)
 			set: function (v) {
 				if(v instanceof $JXV){
 					let oldV;
-					oldV=valJXVMap['repeatX'];
-					if(oldV){
+					oldV = valJXVMap.get('repeatX');
+					if (oldV) {
 						oldV.untrace();
 						valJXVMap.delete('repeatX');
 					}
-					v.trace(this.stateObj,this,'repeatX',hudView);
-					valJXVMap.set('repeatX',v);
+					if(v.traces!==0) {
+						v.trace(this.stateObj, this, 'repeatX', hudView);
+						valJXVMap.set('repeatX', v);
+					}
 					v=v.val;
 				}
 				if (repeatX!==v) {
@@ -348,13 +362,15 @@ JAXHudImage=function(jaxEnv)
 			set: function (v) {
 				if(v instanceof $JXV){
 					let oldV;
-					oldV=valJXVMap['repeatY'];
-					if(oldV){
+					oldV = valJXVMap.get('repeatY');
+					if (oldV) {
 						oldV.untrace();
 						valJXVMap.delete('repeatY');
 					}
-					v.trace(this.stateObj,this,'repeatY',hudView);
-					valJXVMap.set('repeatY',v);
+					if(v.traces!==0) {
+						v.trace(this.stateObj, this, 'repeatY', hudView);
+						valJXVMap.set('repeatY', v);
+					}
 					v=v.val;
 				}
 				if (repeatY!==v) {
@@ -374,13 +390,15 @@ JAXHudImage=function(jaxEnv)
 			set: function (v) {
 				if(v instanceof $JXV){
 					let oldV;
-					oldV=valJXVMap['image'];
-					if(oldV){
+					oldV = valJXVMap.get('image');
+					if (oldV) {
 						oldV.untrace();
 						valJXVMap.delete('image');
 					}
-					v.trace(this.stateObj,this,'image',hudView);
-					valJXVMap.set('image',v);
+					if(v.traces!==0) {
+						v.trace(this.stateObj, this, 'image', hudView);
+						valJXVMap.set('image', v);
+					}
 					v=v.val;
 				}
 				if (imageURL!==v) {
@@ -402,13 +420,15 @@ JAXHudImage=function(jaxEnv)
 			set: function (v) {
 				if(v instanceof $JXV){
 					let oldV;
-					oldV=valJXVMap['imgPos'];
-					if(oldV){
+					oldV = valJXVMap.get('imgPos');
+					if (oldV) {
 						oldV.untrace();
 						valJXVMap.delete('imgPos');
 					}
-					v.trace(this.stateObj,this,'imgPos',hudView);
-					valJXVMap.set('imgPos',v);
+					if(v.traces!==0) {
+						v.trace(this.stateObj, this, 'imgPos', hudView);
+						valJXVMap.set('imgPos', v);
+					}
 					v=v.val;
 				}
 				if (Array.isArray(v)) {
@@ -432,13 +452,15 @@ JAXHudImage=function(jaxEnv)
 			set: function (v) {
 				if(v instanceof $JXV){
 					let oldV;
-					oldV=valJXVMap['imgScale'];
-					if(oldV){
+					oldV = valJXVMap.get('imgScale');
+					if (oldV) {
 						oldV.untrace();
 						valJXVMap.delete('imgScale');
 					}
-					v.trace(this.stateObj,this,'imgScale',hudView);
-					valJXVMap.set('imgScale',v);
+					if(v.traces!==0) {
+						v.trace(this.stateObj, this, 'imgScale', hudView);
+						valJXVMap.set('imgScale', v);
+					}
 					v=v.val;
 				}
 				if(v>0 || v<0) {
@@ -547,7 +569,7 @@ JAXHudImage.prototype=__Proto;
 
 		if(!this.webObj) {
 			div = this.webObj = document.createElement('div');
-			div.style.position = "absolute";
+			div.style.position = cssObj.position||"absolute";
 			father = this.father;
 			if (father && father.webObj) {
 				father.webObj.appendChild(div);
@@ -557,14 +579,15 @@ JAXHudImage.prototype=__Proto;
 		if(cssObj.faces){
 			cssObj.jaxObjHash=1;
 		}
+		if(cssObj.jaxId){
+			this["#self"]=this;
+			//添加这个Hud
+			jaxEnv.addHashObj("#"+cssObj.jaxId, this);
+		}
 		//确定StateObj:
 		var stateObj=cssObj.hudState;
 		if(stateObj){
 			ownerState=father?father.stateObj:(owner?owner.stateObj:null);
-			if(cssObj.jaxId){
-				//添加这个Hud
-				jaxEnv.addHashObj("#"+cssObj.jaxId, this);
-			}
 			if(!stateObj.isJAXHudState) {
 				stateObj = jaxHudState(this.jaxEnv, stateObj);
 			}

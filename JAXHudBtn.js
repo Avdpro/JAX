@@ -1,4 +1,4 @@
-import {$JXV} from "./JAXEnv.js";
+import {JAXEnv,$JXV} from "./JAXEnv.js";
 import {JAXHudObj} from "./JAXHudObj.js";
 import {jaxHudState} from "./JAXHudState.js";
 
@@ -52,6 +52,8 @@ JAXHudBtn=function(jaxEnv)
 	this.hudBtnGray_=null;
 	this.hudBtnOver_=null;
 	this.enabled_=1;
+
+	this.isDragging=0;
 
 	Object.defineProperty(this, 'hudBtnUp_', {enumerable:false,writable:true});
 	Object.defineProperty(this, 'hudBtnDown_', {enumerable:false,writable:true});
@@ -207,13 +209,15 @@ JAXHudBtn=function(jaxEnv)
 			set:function(v){
 				if(v instanceof $JXV){
 					let oldV;
-					oldV=valJXVMap['enable'];
-					if(oldV){
+					oldV = valJXVMap.get('enable');
+					if (oldV) {
 						oldV.untrace();
 						valJXVMap.delete('enable');
 					}
-					v.trace(this.stateObj,this,'enable',hudView);
-					valJXVMap.set('enable',v);
+					if(v.traces!==0) {
+						v.trace(this.stateObj, this, 'enable', hudView);
+						valJXVMap.set('enable', v);
+					}
 					v=v.val;
 				}
 				v=v?1:0;
@@ -238,7 +242,7 @@ JAXHudBtn=function(jaxEnv)
 				return curBtnState;
 			},
 			set:function(v){
-				var firstWebChd,stateHud;
+				var firstWebChd,stateHud,face;
 				if(v===curBtnState){
 					return;
 				}
@@ -247,18 +251,22 @@ JAXHudBtn=function(jaxEnv)
 					default:
 						curBtnState=STATE_UP;
 						stateHud=this.hudBtnUp_;
+						face="up";
 						break;
 					case STATE_DOWN:
 						curBtnState=STATE_DOWN;
 						stateHud=this.hudBtnDown_;
+						face="down";
 						break;
 					case STATE_OVER:
 						curBtnState=STATE_OVER;
 						stateHud=this.hudBtnOver_;
+						face="over";
 						break;
 					case STATE_GRAY:
 						curBtnState=STATE_GRAY;
 						stateHud=this.hudBtnGray_;
+						face="gray";
 						break;
 					case STATE_NA: {
 						curBtnState=STATE_NA;
@@ -292,6 +300,9 @@ JAXHudBtn=function(jaxEnv)
 						curBtnHud=null;
 					}
 				}
+				if(face){
+					this.showFace(face);
+				}
 			},
 			enumerable:false
 		});
@@ -304,16 +315,18 @@ JAXHudBtn=function(jaxEnv)
 			set:function(v){
 				if(v instanceof $JXV){
 					let oldV;
-					oldV=valJXVMap['enable'];
-					if(oldV){
+					oldV = valJXVMap.get('enable');
+					if (oldV) {
 						oldV.untrace();
 						valJXVMap.delete('enable');
 					}
-					v.trace(this.stateObj,this,'enable',hudView);
-					valJXVMap.set('enable',v);
+					if(v.traces!==0) {
+						v.trace(this.stateObj, this, 'enable', hudView);
+						valJXVMap.set('enable', v);
+					}
 					v=v.val;
 				}
-				v=v?1:0;
+				v=v===2?2:(v?1:0);
 				drag=v;
 			},
 			enumerable:true
@@ -405,7 +418,6 @@ JAXHudBtn=function(jaxEnv)
 				}
 			}
 		};
-
 	}
 };
 
@@ -464,13 +476,14 @@ JAXHudBtn.prototype=__Proto;
 					document.body.appendChild(this.labelObjDiv);
 					this.labelObjDiv.innerHTML=cssObj.labelHtml;
 					this.labelTarget_=this.labelObjDiv.firstChild;
-					this.labelTarget_.onchange=cssObj.OnLableAction;
+					this.labelTarget_.onchange=cssObj.OnLabelAction||cssObj.OnLableAction;
 				}else if(cssObj.labelFor){
 					this.isLabel=1;
 					this.labelTarget_=document.getElementById(cssObj.labelFor);
 				}
 				div = this.webObj = document.createElement('div');
-				div.style.position = "absolute";
+				div.style.position = cssObj.position||"absolute";
+				div.style.backgroundColor="rgba(0,0,0,0.0)";
 				father = this.father;
 				if (father && father.webObj) {
 					father.webObj.appendChild(div);
@@ -480,14 +493,15 @@ JAXHudBtn.prototype=__Proto;
 			if(cssObj.faces){
 				cssObj.jaxObjHash=1;
 			}
+			if(cssObj.jaxId){
+				this["#self"]=this;
+				//添加这个Hud
+				jaxEnv.addHashObj("#"+cssObj.jaxId, this);
+			}
 			//确定StateObj:
 			var stateObj=cssObj.hudState;
 			if(stateObj){
 				ownerState=father?father.stateObj:(owner?owner.stateObj:null);
-				if(cssObj.jaxId){
-					//添加这个State对象
-					jaxEnv.addHashObj("#"+cssObj.jaxId, this);
-				}
 				if(!stateObj.isJAXHudState) {
 					stateObj = jaxHudState(this.jaxEnv, stateObj);
 				}
@@ -585,19 +599,34 @@ JAXHudBtn.prototype=__Proto;
 			if(!this.enable){
 				return;
 			}
-			//console.log("Mouse down: "+this.isPenDown);
 			if(!this.isPenDown) {
-				this.isPenDown = 1;
-				this.state = STATE_DOWN;
-				this.isPenDown = 1;
-				this.state = STATE_DOWN;
 				e.stopPropagation();
+				e.preventDefault();
 				//this.webObj.addEventListener('mousemove', this.OnMouseMoveBinded, true);
-				this.webObj.addEventListener('mouseup', this.OnMouseUpBinded, true);
-				this.webObj.addEventListener('mouseover', this.OnMouseOverBinded, true);
-				this.webObj.addEventListener('mouseout', this.OnMouseOutBinded, true);
-				this.jaxEnv.addOnMouseUp(this.OnMouseUpBinded);
-				this.OnButtonDown&&this.OnButtonDown(1,e);
+				if(this.drag===2 && this.OnDragStart && !this.isDragging){
+					let self=this;
+					self.isDragging=1;
+					self.OnDragStart(e);
+					self.jaxEnv.startDrag(e,{
+						OnDrag:self.OnDrag?self.OnDrag.bind(self):null,
+						OnDone:(e,dx,dy)=>{
+							self.isDragging=0;
+							self.OnDragEnd&&self.OnDragEnd.call(self,e,dx,dy);
+						},
+					});
+					this.OnDrag&&this.OnDrag(e,0,0);
+				}else {
+					this.isPenDown = 1;
+					this.state = STATE_DOWN;
+					this.isPenDown = 1;
+					this.state = STATE_DOWN;
+
+					this.webObj.addEventListener('mouseup', this.OnMouseUpBinded, true);
+					this.webObj.addEventListener('mouseover', this.OnMouseOverBinded, true);
+					this.webObj.addEventListener('mouseout', this.OnMouseOutBinded, true);
+					this.jaxEnv.addOnMouseUp(this.OnMouseUpBinded);
+					this.OnButtonDown && this.OnButtonDown(1, e);
+				}
 			}
 		};
 
@@ -620,10 +649,14 @@ JAXHudBtn.prototype=__Proto;
 				this.OnButtonDown&&this.OnButtonDown(e);
 				if(!fromBG && this.OnClickFunc_ && this.enable){
 					this.OnButtonUp&&this.OnButtonUp(1,e);
-					this.OnClickFunc_(e);
+					if(this.OnClickFunc_(e)){
+						this.state = STATE_UP;
+					}
 				}else{
 					this.OnButtonUp&&this.OnButtonUp(0,e);
 				}
+				e.stopPropagation();
+				e.preventDefault();
 				if(this.labelTarget_){
 					var evt;
 					evt=new MouseEvent("click", {
@@ -673,11 +706,16 @@ JAXHudBtn.prototype=__Proto;
 			if(this.isPenDown) {
 				this.state=STATE_UP;
 				this.OnButtonUp&&this.OnButtonUp(0,e);
-				if(this.drag){
-					this.OnDragStart&&this.OnDragStart(e);
-					this.jaxEnv.startDrag(e,{
-						OnDrag:this.OnDrag?this.OnDrag.bind(this):null,
-						OnDone:this.OnDragEnd?this.OnDragEnd.bind(this):null,
+				if(this.drag===1 && !this.isDragging && this.OnDragStart){
+					let self=this;
+					self.isDragging=1;
+					self.OnDragStart(e);
+					self.jaxEnv.startDrag(e,{
+						OnDrag:self.OnDrag?self.OnDrag.bind(self):null,
+						OnDone:(e,cancel,dx,dy)=>{
+							self.isDragging=0;
+							self.OnDragEnd&&self.OnDragEnd.call(self,e,cancel,dx,dy);
+						},
 					});
 					this.OnDrag&&this.OnDrag(e,0,0);
 				}

@@ -1,4 +1,4 @@
-import {$JXV} from "./JAXEnv.js";
+import {JAXEnv,$JXV,$V} from "./JAXEnv.js";
 import {JAXHudObj} from "./JAXHudObj.js";
 import {jaxHudState} from "./JAXHudState.js";
 
@@ -28,7 +28,12 @@ var JAXHudTreeNode;
 		this.webDiv.style.position = "relative";
 		this.webDiv.style.marginBottom=box.nodeGap+"px";
 		//this.webDiv.style.left=(intend*box.intend)+"px";
-		this.intendW = intend * box.intend;
+		this.subIntend=0;
+		if(ownerNode) {
+			this.intendW = ownerNode.intendW + (ownerNode.subIntend ? ownerNode.subIntend : box.intend);
+		}else{
+			this.intendW=0;
+		}
 		this.isOpen=0;
 		this.sizeObserver=new ResizeObserver(entries=>{
 			let hud;
@@ -107,6 +112,9 @@ var JAXHudTreeNode;
 				this.webDiv.appendChild(hud.webObj);
 				this.webDiv.style.height = hud.h + "px";
 			}
+			if(hud.autoLayout){
+				hud._doLayout();
+			}
 			this.sizeObserver.observe(hud.webObj);
 		}
 	};
@@ -149,6 +157,7 @@ var JAXHudTreeNode;
 			this.hud = null;
 		}
 		this.sizeObserver.disconnect();
+		this.owner=null;
 	};
 
 	//---------------------------------------------------------------------------
@@ -267,13 +276,15 @@ JAXHudTree=function(jaxEnv)
 			set: function (v) {
 				if(v instanceof $JXV){
 					let oldV;
-					oldV=valJXVMap['intend'];
-					if(oldV){
+					oldV = valJXVMap.get('intend');
+					if (oldV) {
 						oldV.untrace();
 						valJXVMap.delete('intend');
 					}
-					v.trace(this.$stateObj_,this,'intend',hudView);
-					valJXVMap.set('intend',v);
+					if(v.traces!==0) {
+						v.trace(this.$stateObj_, this, 'intend', hudView);
+						valJXVMap.set('intend', v);
+					}
 					v=v.val;
 				}
 				if (v !== intend) {
@@ -294,13 +305,15 @@ JAXHudTree=function(jaxEnv)
 			set: function (v) {
 				if(v instanceof $JXV){
 					let oldV;
-					oldV=valJXVMap['nodeGap'];
-					if(oldV){
+					oldV = valJXVMap.get('nodeGap');
+					if (oldV) {
 						oldV.untrace();
 						valJXVMap.delete('nodeGap');
 					}
-					v.trace(this.$stateObj_,this,'nodeGap',hudView);
-					valJXVMap.set('nodeGap',v);
+					if(v.traces!==0) {
+						v.trace(this.$stateObj_, this, 'nodeGap', hudView);
+						valJXVMap.set('nodeGap', v);
+					}
 					v=v.val;
 				}
 				if (v !== nodeGap) {
@@ -321,13 +334,15 @@ JAXHudTree=function(jaxEnv)
 			set: function (v) {
 				if(v instanceof $JXV){
 					let oldV;
-					oldV=valJXVMap['headSpace'];
-					if(oldV){
+					oldV = valJXVMap.get('headSpace');
+					if (oldV) {
 						oldV.untrace();
 						valJXVMap.delete('headSpace');
 					}
-					v.trace(this.stateObj,this,'headSpace',hudView);
-					valJXVMap.set('headSpace',v);
+					if(v.traces!==0) {
+						v.trace(this.stateObj, this, 'headSpace', hudView);
+						valJXVMap.set('headSpace', v);
+					}
 					v=v.val;
 				}
 				if (v !== headSpace) {
@@ -348,13 +363,15 @@ JAXHudTree=function(jaxEnv)
 			set: function (v) {
 				if(v instanceof $JXV){
 					let oldV;
-					oldV=valJXVMap['endSpace'];
-					if(oldV){
+					oldV = valJXVMap.get('endSpace');
+					if (oldV) {
 						oldV.untrace();
 						valJXVMap.delete('endSpace');
 					}
-					v.trace(this.stateObj,this,'endSpace',hudView);
-					valJXVMap.set('endSpace',v);
+					if(v.traces!==0) {
+						v.trace(this.stateObj, this, 'endSpace', hudView);
+						valJXVMap.set('endSpace', v);
+					}
 					v=v.val;
 				}
 				if (v!==endSpace) {
@@ -436,13 +453,15 @@ JAXHudTree=function(jaxEnv)
 			set: function (v) {
 				if(v instanceof $JXV){
 					let oldV;
-					oldV=valJXVMap['intend'];
-					if(oldV){
+					oldV = valJXVMap.get('intend');
+					if (oldV) {
 						oldV.untrace();
 						valJXVMap.delete('intend');
 					}
-					v.trace(this.$stateObj_,this,'intend',hudView);
-					valJXVMap.set('intend',v);
+					if(v.traces!==0) {
+						v.trace(this.$stateObj_, this, 'intend', hudView);
+						valJXVMap.set('intend', v);
+					}
 					v=v.val;
 				}
 				if(v!==multi){
@@ -475,6 +494,7 @@ JAXHudTree=function(jaxEnv)
 		//*******************************************************************
 		{
 			let pauseSelCallback=0;
+			let willOpenNodes=[];
 			//---------------------------------------------------------------
 			//删除全部滚动控件
 			this.clear = this.removeAllNodes = function () {
@@ -554,20 +574,27 @@ JAXHudTree=function(jaxEnv)
 			//---------------------------------------------------------------
 			//在指定节点下添加一组节点，如果指定节点不存在，则添加到根节点
 			this.addNodes = function (list, upNode) {
-				let node, idx, css, obj, i, n, intend, nextNode;
+				let node, idx, css, obj, i, n, intend, nextNode,openNodes;
+				node=null;
 				//添加一个节点，先看看有没有父节点:
 				if (!upNode) {
 					//添加根节点
 					n = list.length;
 					for (i = 0; i < n; i++) {
 						obj = list[i];
-						node = new JAXHudTreeNode(this, obj, 0, upNode);
-						this.subHudDiv.insertBefore(node.webDiv, this.endSpaceDiv);
-						css = nodeCSSFunc(obj, node, this);
-						node.setItem(css);
-						nodeList.push(node);
-						if (this.OnAddNode) {
-							this.OnAddNode(obj, node, upNode);
+						if(obj===true){//刚刚加入的节点要打开
+							if(node){
+								this.openNode(node);
+							}
+						}else {
+							node = new JAXHudTreeNode(this, obj, 0, upNode);
+							this.subHudDiv.insertBefore(node.webDiv, this.endSpaceDiv);
+							css = nodeCSSFunc(obj, node, this);
+							node.setItem(css);
+							nodeList.push(node);
+							if (this.OnAddNode) {
+								this.OnAddNode(obj, node, upNode);
+							}
 						}
 					}
 					return;
@@ -590,26 +617,39 @@ JAXHudTree=function(jaxEnv)
 					idx = -1;
 				}
 
+				node=null;
+				willOpenNodes.splice(0);
 				//插入Node:
 				nextNode = nodeList[idx];
 				n = list.length;
 				for (i = 0; i < n; i++) {
 					obj = list[i];
-					node = new JAXHudTreeNode(this, obj, intend, upNode);
-					if (nextNode) {
-						nodeList.splice(idx, 0, node);
-						this.subHudDiv.insertBefore(node.webDiv, nextNode.webDiv);
-					} else {
-						nodeList.push(node);
-						this.subHudDiv.insertBefore(node.webDiv, this.endSpaceDiv);
-					}
-					css = nodeCSSFunc(obj, node, this);
-					node.setItem(css);
-					idx++;
-					if (this.OnAddNode) {
-						this.OnAddNode(obj, node, upNode);
+					if(obj===true){
+						if(node) {
+							willOpenNodes.push(node);
+						}
+					}else {
+						node = new JAXHudTreeNode(this, obj, intend, upNode);
+						if (nextNode) {
+							nodeList.splice(idx, 0, node);
+							this.subHudDiv.insertBefore(node.webDiv, nextNode.webDiv);
+						} else {
+							nodeList.push(node);
+							this.subHudDiv.insertBefore(node.webDiv, this.endSpaceDiv);
+						}
+						css = nodeCSSFunc(obj, node, this);
+						node.setItem(css);
+						idx++;
+						if (this.OnAddNode) {
+							this.OnAddNode(obj, node, upNode);
+						}
 					}
 				}
+				n=willOpenNodes.length;
+				for(i=0;i<n;i++){
+					this.openNode(willOpenNodes[i]);
+				}
+				willOpenNodes.splice(0);
 			};
 
 			//---------------------------------------------------------------
@@ -896,7 +936,7 @@ JAXHudTree=function(jaxEnv)
 					}
 					node.hud.face = "hot";
 				} else {
-					if (!multi) {
+					if (!multi || !addSel) {
 						this.clearSelects();
 					}
 				}
@@ -1160,7 +1200,7 @@ JAXHudTree.prototype=__Proto;
 		this.removeAllChildren();
 		if(!this.webObj) {
 			div = this.webObj = document.createElement('div');
-			div.style.position = "absolute";
+			div.style.position = cssObj.position||"absolute";
 			father = this.father;
 			if (father && father.webObj) {
 				father.webObj.appendChild(div);
@@ -1191,14 +1231,15 @@ JAXHudTree.prototype=__Proto;
 		if(cssObj.faces){
 			cssObj.jaxObjHash=1;
 		}
+		if(cssObj.jaxId){
+			this["#self"]=this;
+			//添加这个Hud
+			jaxEnv.addHashObj("#"+cssObj.jaxId, this);
+		}
 		//确定StateObj:
 		var stateObj=cssObj.hudState;
 		if(stateObj){
 			ownerState=father?father.stateObj:(owner?owner.stateObj:null);
-			if(cssObj.jaxId){
-				//添加这个Hud
-				jaxEnv.addHashObj("#"+cssObj.jaxId, this);
-			}
 			if(!stateObj.isJAXHudState) {
 				stateObj = jaxHudState(this.jaxEnv, stateObj);
 			}

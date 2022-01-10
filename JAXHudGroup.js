@@ -1,4 +1,4 @@
-import {$JXV} from "./JAXEnv.js";
+import {JAXEnv,$JXV} from "./JAXEnv.js";
 import {JAXHudObj} from "./JAXHudObj.js";
 import {jaxHudState} from "./JAXHudState.js";
 
@@ -176,8 +176,9 @@ JAXHudGroup.prototype=__Proto;
 		if(stateObj){
 			ownerState=father?father.stateObj:(owner?owner.stateObj:null);
 			if(cssObj.jaxId){
-				//添加这个State对象
-				jaxEnv.addHashObj("%"+cssObj.jaxId, stateObj);
+				this["#self"]=this;
+				//添加这个Hud
+				jaxEnv.addHashObj("#"+cssObj.jaxId, this);
 			}
 			if(!stateObj.isJAXHudState) {
 				stateObj = jaxHudState(this.jaxEnv, stateObj);

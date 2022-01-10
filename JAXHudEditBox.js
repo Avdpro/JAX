@@ -1,4 +1,4 @@
-import {$JXV} from "./JAXEnv.js";
+import {JAXEnv,$JXV} from "./JAXEnv.js";
 import {JAXHudObj} from "./JAXHudObj.js";
 import {jaxHudState} from "./JAXHudState.js";
 
@@ -14,6 +14,8 @@ JAXHudEditBox=function(jaxEnv)
 	var text,fntName,fntSize,fntColor;
 	var placeHolder="";
 	var selectOnFocus=1;
+	var spellCheck=1;
+	var outline=1;
 	var list=null;
 	var _attrChanged,_textChanged;
 	var signUpdate;
@@ -28,6 +30,7 @@ JAXHudEditBox=function(jaxEnv)
 
 	self=this;
 	this.webDataList=null;
+	this.inputType="text";
 
 	signUpdate=this.signUpdate;
 
@@ -58,13 +61,15 @@ JAXHudEditBox=function(jaxEnv)
 			set: function (v) {
 				if(v instanceof $JXV){
 					let oldV;
-					oldV=valJXVMap['bgColor'];
-					if(oldV){
+					oldV = valJXVMap.get('bgColor');
+					if (oldV) {
 						oldV.untrace();
 						valJXVMap.delete('bgColor');
 					}
-					v.trace(this.stateObj,this,'bgColor',hudView);
-					valJXVMap.set('bgColor',v);
+					if(v.traces!==0) {
+						v.trace(this.stateObj, this, 'bgColor', hudView);
+						valJXVMap.set('bgColor', v);
+					}
 					v=v.val;
 				}
 				if (Array.isArray(v)) {
@@ -73,7 +78,7 @@ JAXHudEditBox=function(jaxEnv)
 					colorBox[2] = v[2];
 					colorBox[3] = v[3];
 				} else if (typeof (v) === 'string') {
-					//TODO: Code this:
+					[colorBox[0],colorBox[1],colorBox[2],colorBox[3]]=JAXEnv.parseColor(v);
 				} else if (typeof (v) === 'number') {
 					//TODO: Code this:
 				}
@@ -91,13 +96,15 @@ JAXHudEditBox=function(jaxEnv)
 			set: function (v) {
 				if(v instanceof $JXV){
 					let oldV;
-					oldV=valJXVMap['border'];
-					if(oldV){
+					oldV = valJXVMap.get('border');
+					if (oldV) {
 						oldV.untrace();
 						valJXVMap.delete('border');
 					}
-					v.trace(this.stateObj,this,'border',hudView);
-					valJXVMap.set('border',v);
+					if(v.traces!==0) {
+						v.trace(this.stateObj, this, 'border', hudView);
+						valJXVMap.set('border', v);
+					}
 					v=v.val;
 				}
 				if (v!==border) {
@@ -117,13 +124,15 @@ JAXHudEditBox=function(jaxEnv)
 			set: function (v) {
 				if(v instanceof $JXV){
 					let oldV;
-					oldV=valJXVMap['borderStyle'];
-					if(oldV){
+					oldV = valJXVMap.get('borderStyle');
+					if (oldV) {
 						oldV.untrace();
 						valJXVMap.delete('borderStyle');
 					}
-					v.trace(this.stateObj,this,'borderStyle',hudView);
-					valJXVMap.set('borderStyle',v);
+					if(v.traces!==0) {
+						v.trace(this.stateObj, this, 'borderStyle', hudView);
+						valJXVMap.set('borderStyle', v);
+					}
 					v=v.val;
 				}
 				if (v!==borderStyle) {
@@ -143,13 +152,15 @@ JAXHudEditBox=function(jaxEnv)
 			set: function (v) {
 				if(v instanceof $JXV){
 					let oldV;
-					oldV=valJXVMap['borderColor'];
-					if(oldV){
+					oldV = valJXVMap.get('borderColor');
+					if (oldV) {
 						oldV.untrace();
 						valJXVMap.delete('borderColor');
 					}
-					v.trace(this.stateObj,this,'borderColor',hudView);
-					valJXVMap.set('borderColor',v);
+					if(v.traces!==0) {
+						v.trace(this.stateObj, this, 'borderColor', hudView);
+						valJXVMap.set('borderColor', v);
+					}
 					v=v.val;
 				}
 				if (Array.isArray(v)) {
@@ -158,7 +169,7 @@ JAXHudEditBox=function(jaxEnv)
 					colorBorder[2] = v[2];
 					colorBorder[3] = v[3];
 				} else if (typeof (v) === 'string') {
-					//TODO: Code this:
+					[colorBorder[0],colorBorder[1],colorBorder[2],colorBorder[3]]=JAXEnv.parseColor(v);
 				} else if (typeof (v) === 'number') {
 					//TODO: Code this:
 				}
@@ -176,13 +187,15 @@ JAXHudEditBox=function(jaxEnv)
 			set: function (v) {
 				if(v instanceof $JXV){
 					let oldV;
-					oldV=valJXVMap['coner'];
-					if(oldV){
+					oldV = valJXVMap.get('coner');
+					if (oldV) {
 						oldV.untrace();
 						valJXVMap.delete('coner');
 					}
-					v.trace(this.stateObj,this,'coner',hudView);
-					valJXVMap.set('coner',v);
+					if(v.traces!==0) {
+						v.trace(this.stateObj, this, 'coner', hudView);
+						valJXVMap.set('coner', v);
+					}
 					v=v.val;
 				}
 				if (v!==coner) {
@@ -208,13 +221,15 @@ JAXHudEditBox=function(jaxEnv)
 			set: function (v) {
 				if(v instanceof $JXV){
 					let oldV;
-					oldV=valJXVMap['text'];
-					if(oldV){
+					oldV = valJXVMap.get('text');
+					if (oldV) {
 						oldV.untrace();
 						valJXVMap.delete('text');
 					}
-					v.trace(this.stateObj,this,'text',hudView);
-					valJXVMap.set('text',v);
+					if(v.traces!==0) {
+						v.trace(this.stateObj, this, 'text', hudView);
+						valJXVMap.set('text', v);
+					}
 					v=v.val;
 				}
 				if(self.webObj){
@@ -238,13 +253,15 @@ JAXHudEditBox=function(jaxEnv)
 			set: function (v) {
 				if(v instanceof $JXV){
 					let oldV;
-					oldV=valJXVMap['placeHolder'];
-					if(oldV){
+					oldV = valJXVMap.get('placeHolder');
+					if (oldV) {
 						oldV.untrace();
 						valJXVMap.delete('placeHolder');
 					}
-					v.trace(this.stateObj,this,'placeHolder',hudView);
-					valJXVMap.set('placeHolder',v);
+					if(v.traces!==0) {
+						v.trace(this.stateObj, this, 'placeHolder', hudView);
+						valJXVMap.set('placeHolder', v);
+					}
 					v=v.val;
 				}
 				if(v!==placeHolder){
@@ -264,13 +281,15 @@ JAXHudEditBox=function(jaxEnv)
 			set: function (v) {
 				if(v instanceof $JXV){
 					let oldV;
-					oldV=valJXVMap['list'];
-					if(oldV){
+					oldV = valJXVMap.get('list');
+					if (oldV) {
 						oldV.untrace();
 						valJXVMap.delete('list');
 					}
-					v.trace(this.stateObj,this,'list',hudView);
-					valJXVMap.set('list',v);
+					if(v.traces!==0) {
+						v.trace(this.stateObj, this, 'list', hudView);
+						valJXVMap.set('list', v);
+					}
 					v=v.val;
 				}
 				//更新选项
@@ -356,13 +375,15 @@ JAXHudEditBox=function(jaxEnv)
 			set: function (v) {
 				if(v instanceof $JXV){
 					let oldV;
-					oldV=valJXVMap['font'];
-					if(oldV){
+					oldV = valJXVMap.get('font');
+					if (oldV) {
 						oldV.untrace();
 						valJXVMap.delete('font');
 					}
-					v.trace(this.stateObj,this,'font',hudView);
-					valJXVMap.set('font',v);
+					if(v.traces!==0) {
+						v.trace(this.stateObj, this, 'font', hudView);
+						valJXVMap.set('font', v);
+					}
 					v=v.val;
 				}
 				if (v!==fntName) {
@@ -382,13 +403,15 @@ JAXHudEditBox=function(jaxEnv)
 			set: function (v) {
 				if(v instanceof $JXV){
 					let oldV;
-					oldV=valJXVMap['color'];
-					if(oldV){
+					oldV = valJXVMap.get('color');
+					if (oldV) {
 						oldV.untrace();
 						valJXVMap.delete('color');
 					}
-					v.trace(this.stateObj,this,'color',hudView);
-					valJXVMap.set('color',v);
+					if(v.traces!==0) {
+						v.trace(this.stateObj, this, 'color', hudView);
+						valJXVMap.set('color', v);
+					}
 					v=v.val;
 				}
 				if (Array.isArray(v)) {
@@ -396,7 +419,7 @@ JAXHudEditBox=function(jaxEnv)
 					fntColor[1] = v[1];
 					fntColor[2] = v[2];
 				} else if (typeof (v) === 'string') {
-					//TODO: Code this:
+					[fntColor[0],fntColor[1],fntColor[2],fntColor[3]]=JAXEnv.parseColor(v);
 				} else if (typeof (v) === 'number') {
 					//TODO: Code this:
 				}
@@ -414,13 +437,15 @@ JAXHudEditBox=function(jaxEnv)
 			set: function (v) {
 				if(v instanceof $JXV){
 					let oldV;
-					oldV=valJXVMap['fontSize'];
-					if(oldV){
+					oldV = valJXVMap.get('fontSize');
+					if (oldV) {
 						oldV.untrace();
 						valJXVMap.delete('fontSize');
 					}
-					v.trace(this.stateObj,this,'fontSize',hudView);
-					valJXVMap.set('fontSize',v);
+					if(v.traces!==0) {
+						v.trace(this.stateObj, this, 'fontSize', hudView);
+						valJXVMap.set('fontSize', v);
+					}
 					v=v.val;
 				}
 				if (v!==fntSize) {
@@ -439,18 +464,96 @@ JAXHudEditBox=function(jaxEnv)
 			set: function (v) {
 				if(v instanceof $JXV){
 					let oldV;
-					oldV=valJXVMap['selectOnFocus'];
-					if(oldV){
+					oldV = valJXVMap.get('selectOnFocus');
+					if (oldV) {
 						oldV.untrace();
 						valJXVMap.delete('selectOnFocus');
 					}
-					v.trace(this.stateObj,this,'selectOnFocus',hudView);
-					valJXVMap.set('selectOnFocus',v);
+					if(v.traces!==0) {
+						v.trace(this.stateObj, this, 'selectOnFocus', hudView);
+						valJXVMap.set('selectOnFocus', v);
+					}
 					v=v.val;
 				}
 				if (v!==selectOnFocus) {
 					selectOnFocus=v;
 				}
+			},
+			enumerable: true
+		});
+
+		Object.defineProperty(this, 'outline', {
+			get: function () {
+				return outline;
+			},
+			set: function (v) {
+				if(v instanceof $JXV){
+					let oldV;
+					oldV = valJXVMap.get('outline');
+					if (oldV) {
+						oldV.untrace();
+						valJXVMap.delete('outline');
+					}
+					if(v.traces!==0) {
+						v.trace(this.stateObj, this, 'outline', hudView);
+						valJXVMap.set('outline', v);
+					}
+					v=v.val;
+				}
+				outline=v?1:0;
+				if(v){
+					this.webObj.style.outlineStyle="auto";
+				}else{
+					this.webObj.style.outlineStyle="none";
+				}
+			},
+			enumerable: true
+		});
+
+		Object.defineProperty(this, 'spellCheck', {
+			get: function () {
+				return spellCheck;
+			},
+			set: function (v) {
+				if(v instanceof $JXV){
+					let oldV;
+					oldV = valJXVMap.get('spellCheck');
+					if (oldV) {
+						oldV.untrace();
+						valJXVMap.delete('spellCheck');
+					}
+					if(v.traces!==0) {
+						v.trace(this.stateObj, this, 'spellCheck', hudView);
+						valJXVMap.set('spellCheck', v);
+					}
+					v=v.val;
+				}
+				spellCheck=v?1:0;
+				this.webObj.spellcheck=!!v;
+			},
+			enumerable: true
+		});
+
+		//选中开始/光标位置
+		Object.defineProperty(this,"selectionStart",{
+			get: function ()
+			{
+				if(this.webObj){
+					return this.webObj.selectionStart;
+				}
+				return 0;
+			},
+			enumerable: true
+		});
+
+		//选中结束：
+		Object.defineProperty(this,"selectionEnd",{
+			get: function ()
+			{
+				if(this.webObj){
+					return this.webObj.selectionEnd;
+				}
+				return 0;
 			},
 			enumerable: true
 		});
@@ -492,7 +595,9 @@ JAXHudEditBox=function(jaxEnv)
 					_textChanged = 0;
 					webObj.value = text;
 				}
-				webObj.placeholder=placeHolder;
+				if(placeHolder) {
+					webObj.placeholder = placeHolder;
+				}
 				style.fontSize=fntSize+"px";
 				if(fntName){
 					style.fontFamily=fntName;
@@ -515,7 +620,9 @@ JAXHudEditBox.prototype=__Proto;
 	//CSS属性列表
 	JAXHudEditBox.jaxPptSet=new Set(Array.from(JAXHudObj.jaxPptSet).concat([
 		'bgColor','border','borderStyle','borderColor','coner',
-		'text','font','color','fontSize','placeHolder','list'
+		'text','font','color','fontSize',
+		'placeHolder','list',
+		'selectOnFocus','outline','spellCheck','inputType',
 	]));
 
 	//---------------------------------------------------------------------------
@@ -536,6 +643,7 @@ JAXHudEditBox.prototype=__Proto;
 		var div, editDiv,father;
 		var self=this;
 		let jaxEnv=this.jaxEnv;
+		let enterKeyTime=0;
 		this.removeAllChildren();
 
 		let owner,ownerState;
@@ -544,7 +652,8 @@ JAXHudEditBox.prototype=__Proto;
 
 		if(!this.webObj) {
 			div = this.webObj = document.createElement('input');
-			div.style.position = "absolute";
+			div.type=cssObj.inputType||"text";
+			div.style.position = cssObj.position||"absolute";
 			div.style.boxSizing="border-box";
 			father = this.father;
 			if (father && father.webObj) {
@@ -570,26 +679,43 @@ JAXHudEditBox.prototype=__Proto;
 					self.OnInput();
 				}
 			};
-			div.onkeyup=function(evt){
+			div.onchange=function(e){
+				let time;
+				if(self.OnChange){
+					time=Date.now()-enterKeyTime;
+					if(time<30) {
+						self.OnChange(e);
+					}
+				}
+			};
+			div.onkeydown=function(evt){
 				if(evt.code==="Enter"){
+					enterKeyTime=Date.now();
 					if(self.OnUpdate){
 						self.OnUpdate();
 					}
+				}else if(evt.code==="Escape"){
+					if(self.OnCancel){
+						self.OnCancel();
+					}
 				}
+			};
+			div.onkeyup=function(evt){
 			};
 			div.jaxObj = this;
 		}
 		if(cssObj.faces){
 			cssObj.jaxObjHash=1;
 		}
+		if(cssObj.jaxId){
+			this["#self"]=this;
+			//添加这个Hud
+			jaxEnv.addHashObj("#"+cssObj.jaxId, this);
+		}
 		//确定StateObj:
 		var stateObj=cssObj.hudState;
 		if(stateObj){
 			ownerState=father?father.stateObj:(owner?owner.stateObj:null);
-			if(cssObj.jaxId){
-				//添加这个State对象
-				jaxEnv.addHashObj("#"+cssObj.jaxId, this);
-			}
 			if(!stateObj.isJAXHudState) {
 				stateObj = jaxHudState(this.jaxEnv, stateObj);
 			}
@@ -668,7 +794,7 @@ JAXHudEditBox.prototype=__Proto;
 
 	//---------------------------------------------------------------
 	//开始编辑
-	__Proto.startEdit=function(){
+	__Proto.focus=__Proto.startEdit=function(){
 		if(this.attrChanged){
 			this._syncWebObjAttr();
 		}

@@ -1,4 +1,4 @@
-import {$JXV} from "./JAXEnv.js";
+import {JAXEnv,$JXV,$V} from "./JAXEnv.js";
 import {JAXHudObj} from "./JAXHudObj.js";
 import {jaxHudState} from "./JAXHudState.js";
 
@@ -249,13 +249,15 @@ JAXHudScrollBox=function(jaxEnv)
 			set:function (v) {
 				if(v instanceof $JXV){
 					let oldV;
-					oldV=valJXVMap['column'];
-					if(oldV){
+					oldV = valJXVMap.get('column');
+					if (oldV) {
 						oldV.untrace();
 						valJXVMap.delete('column');
 					}
-					v.trace(this.$stateObj_,this,'column',hudView);
-					valJXVMap.set('column',v);
+					if(v.traces!==0) {
+						v.trace(this.$stateObj_, this, 'column', hudView);
+						valJXVMap.set('column', v);
+					}
 					v=v.val;
 				}
 				var list,i,n,columnW;
@@ -310,13 +312,15 @@ JAXHudScrollBox=function(jaxEnv)
 			set: function (v) {
 				if(v instanceof $JXV){
 					let oldV;
-					oldV=valJXVMap['headSpace'];
-					if(oldV){
+					oldV = valJXVMap.get('headSpace');
+					if (oldV) {
 						oldV.untrace();
 						valJXVMap.delete('headSpace');
 					}
-					v.trace(this.stateObj,this,'headSpace',hudView);
-					valJXVMap.set('headSpace',v);
+					if(v.traces!==0) {
+						v.trace(this.stateObj, this, 'headSpace', hudView);
+						valJXVMap.set('headSpace', v);
+					}
 					v=v.val;
 				}
 				if (v!==headSpace) {
@@ -337,13 +341,15 @@ JAXHudScrollBox=function(jaxEnv)
 			set: function (v) {
 				if(v instanceof $JXV){
 					let oldV;
-					oldV=valJXVMap['endSpace'];
-					if(oldV){
+					oldV = valJXVMap.get('endSpace');
+					if (oldV) {
 						oldV.untrace();
 						valJXVMap.delete('endSpace');
 					}
-					v.trace(this.stateObj,this,'endSpace',hudView);
-					valJXVMap.set('endSpace',v);
+					if(v.traces!==0) {
+						v.trace(this.stateObj, this, 'endSpace', hudView);
+						valJXVMap.set('endSpace', v);
+					}
 					v=v.val;
 				}
 				if (v!==endSpace) {
@@ -364,13 +370,15 @@ JAXHudScrollBox=function(jaxEnv)
 			set: function (v) {
 				if(v instanceof $JXV){
 					let oldV;
-					oldV=valJXVMap['subGap'];
-					if(oldV){
+					oldV = valJXVMap.get('subGap');
+					if (oldV) {
 						oldV.untrace();
 						valJXVMap.delete('subGap');
 					}
-					v.trace(this.stateObj,this,'subGap',hudView);
-					valJXVMap.set('subGap',v);
+					if(v.traces!==0) {
+						v.trace(this.stateObj, this, 'subGap', hudView);
+						valJXVMap.set('subGap', v);
+					}
 					v=v.val;
 				}
 				if (v!==subGap) {
@@ -677,7 +685,7 @@ JAXHudScrollBox.prototype=__Proto;
 		this.removeAllChildren();
 		if(!this.webObj) {
 			div = this.webObj = document.createElement('div');
-			div.style.position = "absolute";
+			div.style.position = cssObj.position||"absolute";
 			father = this.father;
 			if (father && father.webObj) {
 				father.webObj.appendChild(div);
@@ -727,15 +735,15 @@ JAXHudScrollBox.prototype=__Proto;
 		if(cssObj.faces){
 			cssObj.jaxObjHash=1;
 		}
-
+		if(cssObj.jaxId){
+			this["#self"]=this;
+			//添加这个Hud
+			jaxEnv.addHashObj("#"+cssObj.jaxId, this);
+		}
 		//确定StateObj:
 		var stateObj=cssObj.hudState;
 		if(stateObj){
 			ownerState=father?father.stateObj:(owner?owner.stateObj:null);
-			if(cssObj.jaxId){
-				//添加这个Hud
-				jaxEnv.addHashObj("#"+cssObj.jaxId, this);
-			}
 			if(!stateObj.isJAXHudState) {
 				stateObj = jaxHudState(this.jaxEnv, stateObj);
 			}
